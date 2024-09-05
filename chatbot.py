@@ -26,7 +26,7 @@ class ChatBot:
         files = get_documents(self.drive_service)
         documents = []
         for file in files:
-            content = get_document_content(self.drive_service, file['id'])
+            content = get_document_content(self.drive_service, file['1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ'])
             documents.append(content)
             logging.info(f"Loaded document: {file['name']}")
         logging.info(f"Total documents loaded: {len(documents)}")
