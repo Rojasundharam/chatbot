@@ -57,10 +57,16 @@ class ChatBot:
         context = self.get_relevant_context(user_input)
         rag_message = RAG_PROMPT.format(context=context, question=user_input)
         
+        # Append the user message
         self.session_state.messages.append({"role": "user", "content": rag_message})
         
+        # Generate a response from the assistant
         response_message = self.generate_message(self.session_state.messages)
         if "error" in response_message:
             return f"An error occurred: {response_message['error']}"
+
+        assistant_response = response_message.content[0].text
+        # Append the assistant message
+        self.session_state.messages.append({"role": "assistant", "content": assistant_response})
         
-        return response_message.content[0].text
+        return assistant_response

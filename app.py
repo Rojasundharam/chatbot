@@ -20,13 +20,14 @@ def main():
             return
 
     # Display chat history
-    for message in st.session_state.messages[2:]:
+    for message in st.session_state.messages:
         st.write(f"{message['role'].capitalize()}: {message['content']}")
 
     # Input field for the user's question
     user_msg = st.text_input("Type your question about JKKN institutions here...")
 
     if user_msg:
+        # Add the user message and ensure assistant responds before adding a new user message
         st.session_state.messages.append({'role': 'user', 'content': user_msg})
 
         # Assistant's response processing
