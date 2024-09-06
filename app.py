@@ -19,9 +19,12 @@ def display_chat_history():
     st.sidebar.title("Chat History")
     for i, message in enumerate(st.session_state.messages):
         if message["role"] == "user":
-            st.sidebar.text_input(f"You ({i+1}):", value=message["content"], key=f"user_msg_{i}", disabled=True)
+            st.sidebar.markdown(f"**You:**")
+            st.sidebar.text_area("", value=message["content"], height=50, key=f"user_msg_{i}", disabled=True)
         else:
-            st.sidebar.text_area(f"JKKN Assist ({i+1}):", value=message["content"], key=f"assistant_msg_{i}", disabled=True, height=100)
+            st.sidebar.markdown(f"**JKKN Assist:**")
+            st.sidebar.text_area("", value=message["content"], height=100, key=f"assistant_msg_{i}", disabled=True)
+        st.sidebar.markdown("---")
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -59,6 +62,13 @@ def main():
 
     # Display chat history in the sidebar
     display_chat_history()
+
+    # Add a clear chat button
+    if st.sidebar.button("Clear Chat"):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! How can I help you today?"}
+        ]
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
