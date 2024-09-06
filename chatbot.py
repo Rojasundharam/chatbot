@@ -1,4 +1,6 @@
 import os
+import pickle
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from config import IDENTITY, TOOLS, MODEL, RAG_PROMPT
@@ -8,6 +10,9 @@ import logging
 import numpy as np
 
 load_dotenv()
+
+CACHE_FILE = 'chatbot_cache.pkl'
+CACHE_EXPIRY_HOURS = 24
 
 class ChatBot:
     def __init__(self, session_state):
@@ -20,15 +25,48 @@ class ChatBot:
             self.session_state = session_state
             self.drive_service = get_drive_service()
             self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"
-            self.documents = self.load_documents()
-            self.embedding_util = EmbeddingUtil()
-            self.embeddings = self.embedding_util.create_embeddings(self.documents)
-            self.index = self.embedding_util.create_faiss_index(self.embeddings)
-            self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
+            
+            self.load_or_update_cache()
+            
             logging.info("ChatBot initialized successfully")
         except Exception as e:
             logging.error(f"Error initializing ChatBot: {str(e)}")
             raise
+
+    def load_or_update_cache(self):
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'rb') as f:
+                cache_data = pickle.load(f)
+            
+            if datetime.now() - cache_data['timestamp'] < timedelta(hours=CACHE_EXPIRY_HOURS):
+                self.documents = cache_data['documents']
+                self.embeddings = cache_data['embeddings']
+                self.index = cache_data['index']
+                self.tfidf_matrix = cache_data['tfidf_matrix']
+                logging.info("Loaded data from cache")
+                return
+
+        self.update_cache()
+
+    def update_cache(self):
+        self.documents = self.load_documents()
+        self.embedding_util = EmbeddingUtil()
+        self.embeddings = self.embedding_util.create_embeddings(self.documents)
+        self.index = self.embedding_util.create_faiss_index(self.embeddings)
+        self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
+
+        cache_data = {
+            'timestamp': datetime.now(),
+            'documents': self.documents,
+            'embeddings': self.embeddings,
+            'index': self.index,
+            'tfidf_matrix': self.tfidf_matrix
+        }
+
+        with open(CACHE_FILE, 'wb') as f:
+            pickle.dump(cache_data, f)
+        
+        logging.info("Updated and saved cache")
 
     def load_documents(self):
         files = get_documents(self.drive_service, self.folder_id)

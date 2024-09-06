@@ -15,6 +15,14 @@ def initialize_chatbot():
             return False
     return True
 
+def display_chat_history():
+    st.sidebar.title("Chat History")
+    for i, message in enumerate(st.session_state.messages):
+        if message["role"] == "user":
+            st.sidebar.text_input(f"You ({i+1}):", value=message["content"], key=f"user_msg_{i}", disabled=True)
+        else:
+            st.sidebar.text_area(f"JKKN Assist ({i+1}):", value=message["content"], key=f"assistant_msg_{i}", disabled=True, height=100)
+
 def main():
     st.title("JKKN Assist 🤖")
     st.write("I'm here to help with information about JKKN Educational Institutions.")
@@ -27,38 +35,30 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
+    # Display chat history in the main area
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # Input for new messages
     if prompt := st.chat_input("Ask me about JKKN institutions"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            try:
-                response = st.session_state.chatbot.process_user_input(prompt)
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            except Exception as e:
-                error_msg = f"Error processing request: {str(e)}"
-                st.error(error_msg)
-                logging.error(error_msg)
+            with st.spinner("Thinking..."):
+                try:
+                    response = st.session_state.chatbot.process_user_input(prompt)
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                except Exception as e:
+                    error_msg = f"Error processing request: {str(e)}"
+                    st.error(error_msg)
+                    logging.error(error_msg)
 
-    st.sidebar.title("Debug Info")
-    if st.sidebar.button("Print Session State"):
-        st.sidebar.write(st.session_state)
-    if st.sidebar.button("Print Chatbot Info"):
-        if "chatbot" in st.session_state:
-            st.sidebar.write({
-                "Documents loaded": len(st.session_state.chatbot.documents),
-                "Embeddings created": len(st.session_state.chatbot.embeddings),
-                "FAISS index size": st.session_state.chatbot.index.ntotal if st.session_state.chatbot.index else "N/A",
-                "TF-IDF matrix shape": st.session_state.chatbot.tfidf_matrix.shape if st.session_state.chatbot.tfidf_matrix else "N/A"
-            })
-        else:
-            st.sidebar.write("Chatbot not initialized")
+    # Display chat history in the sidebar
+    display_chat_history()
 
 if __name__ == "__main__":
     main()
