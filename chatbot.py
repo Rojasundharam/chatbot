@@ -26,7 +26,7 @@ class ChatBot:
             self.drive_service = get_drive_service()
             self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"
             
-            self.embedding_util = EmbeddingUtil()  # Always initialize EmbeddingUtil
+            self.embedding_util = EmbeddingUtil()
             self.load_or_update_cache()
             
             logging.info("ChatBot initialized successfully")
@@ -44,8 +44,8 @@ class ChatBot:
                 self.embeddings = cache_data['embeddings']
                 self.index = cache_data['index']
                 self.tfidf_matrix = cache_data['tfidf_matrix']
+                self.embedding_util.tfidf_vectorizer = cache_data['tfidf_vectorizer']
                 logging.info("Loaded data from cache")
-                self.check_cache_update()
                 return
 
         self.update_cache()
@@ -61,18 +61,14 @@ class ChatBot:
             'documents': self.documents,
             'embeddings': self.embeddings,
             'index': self.index,
-            'tfidf_matrix': self.tfidf_matrix
+            'tfidf_matrix': self.tfidf_matrix,
+            'tfidf_vectorizer': self.embedding_util.tfidf_vectorizer
         }
 
         with open(CACHE_FILE, 'wb') as f:
             pickle.dump(cache_data, f)
         
         logging.info("Updated and saved cache")
-
-    def check_cache_update(self):
-        if not hasattr(self, 'documents') or not hasattr(self, 'embeddings') or not hasattr(self, 'index') or not hasattr(self, 'tfidf_matrix'):
-            logging.info("Cache incomplete, updating...")
-            self.update_cache()
 
     def load_documents(self):
         files = get_documents(self.drive_service, self.folder_id)
@@ -166,7 +162,7 @@ Answer:
             return assistant_response
         except Exception as e:
             logging.error(f"Error processing user input: {str(e)}")
-            return "I apologize, but I encountered an error while processing your request. Could you please try asking your question about JKKN institutions in a different way?"
+            return f"I apologize, but I encountered an error while processing your request: {str(e)}. Could you please try asking your question about JKKN institutions in a different way?"
 
     def get_conversation_history(self):
         return self.session_state.messages
