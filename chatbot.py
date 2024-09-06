@@ -6,8 +6,10 @@ from anthropic import Anthropic
 from config import IDENTITY, TOOLS, MODEL, RAG_PROMPT
 from google_drive_utils import get_drive_service, get_documents, get_document_content
 from embedding_utils import EmbeddingUtil
+from file_processor import extract_file_text, get_file_ext
 import logging
 import numpy as np
+import io
 
 load_dotenv()
 
@@ -75,16 +77,42 @@ class ChatBot:
         documents = []
         for file in files:
             content = get_document_content(self.drive_service, file['id'])
-            content = self.preprocess_text(content)
-            documents.append(content)
-            logging.info(f"Loaded and preprocessed document: {file['name']}")
+            file_extension = get_file_ext(file['name'])
+            
+            try:
+                extracted_text = extract_file_text(file['name'], io.BytesIO(content))
+                processed_content = self.preprocess_text(extracted_text)
+                documents.append(processed_content)
+                logging.info(f"Loaded and preprocessed document: {file['name']}")
+            except Exception as e:
+                logging.error(f"Failed to process file {file['name']}: {str(e)}")
+        
         return documents
 
     def preprocess_text(self, text):
-        return text.lower().replace('\n', ' ')
+        # Remove special characters but keep spaces between words
+        text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
+        # Convert to lowercase and remove extra spaces
+        return ' '.join(text.lower().split())
 
-    def get_relevant_context(self, query, max_tokens=50000):
-        similar_indices = self.embedding_util.hybrid_search(query, self.index, self.embeddings, self.tfidf_matrix)
+    def expand_query(self, query):
+        expanded_terms = {
+            "jkkn": ["j.k.k. nattraja", "educational institutions", "college", "university", "school", "academy"],
+            "course": ["program", "curriculum", "study", "degree", "major", "subject", "class"],
+            "admission": ["enrollment", "registration", "apply", "join", "entrance", "application"],
+            "facility": ["infrastructure", "amenity", "resource", "campus", "building", "laboratory", "library"],
+            "faculty": ["staff", "teacher", "professor", "lecturer", "instructor"],
+            "student": ["learner", "pupil", "scholar", "undergraduate", "postgraduate"],
+            "research": ["study", "investigation", "project", "thesis", "dissertation"],
+        }
+        expanded_query = query.lower()
+        for term, expansions in expanded_terms.items():
+            if term in expanded_query:
+                expanded_query += " " + " ".join(expansions)
+        return expanded_query
+
+    def get_relevant_context(self, query, max_tokens=50000, top_k=20):
+        similar_indices = self.embedding_util.hybrid_search(query, self.index, self.embeddings, self.tfidf_matrix, k=top_k)
         
         context = ""
         total_tokens = 0
@@ -95,50 +123,31 @@ class ChatBot:
                 break
             context += document + "\n\n"
             total_tokens += document_tokens
+        
+        logging.info(f"Retrieved context (first 500 chars): {context[:500]}")
         return context
-
-    def generate_message(self, messages, max_tokens=2048):
-        try:
-            response = self.anthropic.messages.create(
-                model=MODEL,
-                system=IDENTITY,
-                max_tokens=max_tokens,
-                messages=messages,
-                tools=TOOLS,
-            )
-            return response
-        except Exception as e:
-            logging.error(f"Error generating message: {str(e)}")
-            raise
-
-    def expand_query(self, query):
-        expanded_terms = {
-            "course": ["program", "curriculum", "study"],
-            "admission": ["enrollment", "registration", "apply"],
-            "facility": ["infrastructure", "amenity", "resource"],
-        }
-        expanded_query = query
-        for term, expansions in expanded_terms.items():
-            if term in query.lower():
-                expanded_query += " " + " ".join(expansions)
-        return expanded_query
 
     def process_user_input(self, user_input):
         try:
             logging.info(f"Processing user input: {user_input}")
             
-            # Check for greetings
+            # Check for greetings or general queries
             greetings = ["hi", "hello", "hey", "greetings"]
+            general_queries = ["how are you", "what can you do"]
+            
             if user_input.lower() in greetings:
                 return "Hello! Welcome to JKKN Assist. How can I help you with information about JKKN Educational Institutions today?"
+            
+            if any(query in user_input.lower() for query in general_queries):
+                return "I'm an AI assistant designed to provide information about JKKN Educational Institutions. I can help you with details about courses, admissions, facilities, and more. What would you like to know?"
             
             expanded_query = self.expand_query(user_input)
             logging.info(f"Expanded query: {expanded_query}")
             context = self.get_relevant_context(expanded_query)
             
-            if not context:
+            if not context.strip():
                 logging.warning("No relevant context found")
-                return "I'm sorry, but I couldn't find any specific information related to your query. Could you please ask a more detailed question about JKKN institutions, such as about courses, admissions, or facilities?"
+                return "I'm sorry, but I couldn't find any specific information related to your query. Could you please ask a more detailed question about JKKN institutions, such as about specific courses, admissions processes, or facilities?"
 
             rag_message = f"""Based on the following information from JKKN institutional documents, please answer the user's question:
 
@@ -163,6 +172,20 @@ Answer:
         except Exception as e:
             logging.error(f"Error processing user input: {str(e)}")
             return f"I apologize, but I encountered an error while processing your request: {str(e)}. Could you please try asking your question about JKKN institutions in a different way?"
+
+    def generate_message(self, messages, max_tokens=2048):
+        try:
+            response = self.anthropic.messages.create(
+                model=MODEL,
+                system=IDENTITY,
+                max_tokens=max_tokens,
+                messages=messages,
+                tools=TOOLS,
+            )
+            return response
+        except Exception as e:
+            logging.error(f"Error generating message: {str(e)}")
+            raise
 
     def get_conversation_history(self):
         return self.session_state.messages
