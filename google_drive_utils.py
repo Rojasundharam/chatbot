@@ -19,7 +19,13 @@ def get_documents(service, folder_id):
     return files
 
 def get_document_content(service, file_id):
-    """Retrieve the content of a document from Google Drive."""
+    """Retrieve the content of a document from Google Drive with flexible encoding."""
     request = service.files().get_media(fileId=file_id)
     content = request.execute()
-    return content.decode('utf-8')
+
+    try:
+        # Try decoding with UTF-8 first
+        return content.decode('utf-8')
+    except UnicodeDecodeError:
+        # If decoding fails, try ISO-8859-1 or any other encoding that might work
+        return content.decode('ISO-8859-1')
