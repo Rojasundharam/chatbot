@@ -5,6 +5,9 @@ from config import IDENTITY, TOOLS, MODEL, RAG_PROMPT
 from google_drive_utils import get_drive_service, get_documents, get_document_content
 from embedding_utils import EmbeddingUtil
 import logging
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 load_dotenv()
 
@@ -22,21 +25,37 @@ class ChatBot:
         self.embedding_util = EmbeddingUtil()
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
+        self.tfidf_vectorizer = TfidfVectorizer()
+        self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(self.documents)
 
     def load_documents(self):
         files = get_documents(self.drive_service, self.folder_id)
         documents = []
         for file in files:
             content = get_document_content(self.drive_service, file['id'])
+            # Preprocess the content (e.g., remove special characters, lowercase)
+            content = self.preprocess_text(content)
             documents.append(content)
-            logging.info(f"Loaded document: {file['name']}")
+            logging.info(f"Loaded and preprocessed document: {file['name']}")
         return documents
 
-    def get_relevant_context(self, query, max_tokens=100000):
-        similar_indices = self.embedding_util.search_similar(query, self.index, self.embeddings)
+    def preprocess_text(self, text):
+        # Implement text preprocessing (e.g., lowercase, remove special characters)
+        return text.lower().replace('\n', ' ')
+
+    def get_relevant_context(self, query, max_tokens=50000):
+        # Combine embedding-based and TF-IDF-based similarity
+        embedding_similar_indices = self.embedding_util.search_similar(query, self.index, self.embeddings)
+        tfidf_query_vec = self.tfidf_vectorizer.transform([query])
+        tfidf_similarities = cosine_similarity(tfidf_query_vec, self.tfidf_matrix).flatten()
+        tfidf_similar_indices = tfidf_similarities.argsort()[-5:][::-1]  # Top 5 TF-IDF similar docs
+
+        # Combine and deduplicate indices
+        combined_indices = list(set(embedding_similar_indices) | set(tfidf_similar_indices))
+
         context = ""
         total_tokens = 0
-        for i in similar_indices:
+        for i in combined_indices:
             document = self.documents[i]
             document_tokens = self.anthropic.count_tokens(document)
             if total_tokens + document_tokens > max_tokens:
@@ -59,21 +78,50 @@ class ChatBot:
             logging.error(f"Error generating message: {str(e)}")
             raise
 
+    def expand_query(self, query):
+        # Implement query expansion techniques (e.g., synonyms, related terms)
+        # This is a simple example; you might want to use more sophisticated methods
+        expanded_terms = {
+            "course": ["program", "curriculum", "study"],
+            "admission": ["enrollment", "registration", "apply"],
+            "facility": ["infrastructure", "amenity", "resource"],
+        }
+        expanded_query = query
+        for term, expansions in expanded_terms.items():
+            if term in query.lower():
+                expanded_query += " " + " ".join(expansions)
+        return expanded_query
+
     def process_user_input(self, user_input):
-        context = self.get_relevant_context(user_input)
-        rag_message = RAG_PROMPT.format(context=context, question=user_input)
+        expanded_query = self.expand_query(user_input)
+        context = self.get_relevant_context(expanded_query)
         
-        messages_for_api = [
-            {"role": "user", "content": rag_message}
-        ]
+        if not context:
+            return "I'm sorry, but I couldn't find any relevant information in my knowledge base to answer your question. Could you please rephrase or ask about a different topic related to JKKN institutions?"
+
+        rag_message = f"""Based on the following information from JKKN institutional documents, please answer the user's question:
+
+Context:
+{context}
+
+User Question: {user_input}
+
+Instructions:
+1. Use ONLY the information provided in the context above to answer the question.
+2. If the context doesn't contain relevant information, say so and offer to help with related topics about JKKN institutions.
+3. Provide a concise but informative answer, citing specific details from the context when possible.
+4. If you're unsure about any information, state that clearly rather than making assumptions.
+
+Answer:
+"""
 
         try:
-            response_message = self.generate_message(messages_for_api)
+            response_message = self.generate_message([{"role": "user", "content": rag_message}])
             assistant_response = response_message.content[0].text
             return assistant_response
         except Exception as e:
             logging.error(f"Error processing user input: {str(e)}")
-            raise
+            return "I apologize, but I encountered an error while processing your request. Could you please try asking your question about JKKN institutions in a different way?"
 
     def get_conversation_history(self):
         return self.session_state.messages
