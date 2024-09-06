@@ -8,6 +8,7 @@ from google_drive_utils import get_drive_service, get_documents, get_document_co
 from embedding_utils import EmbeddingUtil
 import logging
 import numpy as np
+import re
 
 load_dotenv()
 
@@ -44,7 +45,7 @@ class ChatBot:
                 self.index = cache_data['index']
                 self.tfidf_matrix = cache_data['tfidf_matrix']
                 self.embedding_util = EmbeddingUtil()
-                self.embedding_util.tfidf_vectorizer.fit(self.documents)  # Fit the vectorizer with documents
+                self.embedding_util.tfidf_vectorizer.fit(self.documents)
                 logging.info("Loaded data from cache")
                 return
 
@@ -56,7 +57,7 @@ class ChatBot:
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
         self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
-        self.embedding_util.tfidf_vectorizer.fit(self.documents)  # Fit the vectorizer with documents
+        self.embedding_util.tfidf_vectorizer.fit(self.documents)
 
         cache_data = {
             'timestamp': datetime.now(),
@@ -82,7 +83,10 @@ class ChatBot:
         return documents
 
     def preprocess_text(self, text):
-        return text.lower().replace('\n', ' ')
+        text = text.lower()
+        text = re.sub(r'\W+', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
+        return text
 
     def get_relevant_context(self, query, max_tokens=50000):
         similar_indices = self.embedding_util.hybrid_search(query, self.index, self.embeddings, self.tfidf_matrix)
@@ -114,9 +118,10 @@ class ChatBot:
 
     def expand_query(self, query):
         expanded_terms = {
-            "course": ["program", "curriculum", "study"],
-            "admission": ["enrollment", "registration", "apply"],
-            "facility": ["infrastructure", "amenity", "resource"],
+            "course": ["program", "curriculum", "study", "degree", "education"],
+            "admission": ["enrollment", "registration", "apply", "application", "entrance"],
+            "facility": ["infrastructure", "amenity", "resource", "equipment", "building"],
+            "jkkn": ["jk knowledge network", "jk institutions", "jk colleges"],
         }
         expanded_query = query
         for term, expansions in expanded_terms.items():
