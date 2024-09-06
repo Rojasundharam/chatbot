@@ -27,14 +27,13 @@ def main():
     user_msg = st.text_input("Type your question about JKKN institutions here...")
 
     if user_msg:
-        # Add the user message and ensure assistant responds before adding a new user message
-        st.session_state.messages.append({'role': 'user', 'content': user_msg})
-
-        # Assistant's response processing
-        full_response = st.session_state.chatbot.process_user_input(user_msg)
-        st.session_state.messages.append({'role': 'assistant', 'content': full_response})
-
-        st.write(f"Assistant: {full_response}")
+        try:
+            # Add the user message and ensure assistant responds before adding a new user message
+            full_response = st.session_state.chatbot.process_user_input(user_msg)
+            st.session_state.messages.append({'role': 'assistant', 'content': full_response})
+            st.write(f"Assistant: {full_response}")
+        except ValueError as e:
+            st.error(f"Error: {str(e)}")
 
 if __name__ == "__main__":
     main()

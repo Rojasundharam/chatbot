@@ -54,6 +54,12 @@ class ChatBot:
 
     def process_user_input(self, user_input):
         """Process user input and return the AI's response."""
+        
+        # Ensure that messages alternate correctly
+        if self.session_state.messages[-1]['role'] != "assistant":
+            raise ValueError("Multiple 'user' messages detected in a row. Assistant must respond before the next user message.")
+
+        # Retrieve context based on the query
         context = self.get_relevant_context(user_input)
         rag_message = RAG_PROMPT.format(context=context, question=user_input)
         
