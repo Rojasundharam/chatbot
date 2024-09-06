@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 class EmbeddingUtil:
     def __init__(self):
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.tfidf_vectorizer = TfidfVectorizer()  # Initialize here
+        self.tfidf_vectorizer = TfidfVectorizer()
 
     def create_embeddings(self, documents):
         """Create embeddings for a list of documents."""
@@ -24,7 +24,7 @@ class EmbeddingUtil:
         index.add(embeddings)
         return index
 
-    def hybrid_search(self, query, index, embeddings, tfidf_matrix, k=5):
+    def hybrid_search(self, query, index, embeddings, tfidf_matrix, k=20):
         """Perform a hybrid search using both embeddings and TF-IDF."""
         query_embedding = self.model.encode([query]).astype('float32')
         _, embedding_indices = index.search(query_embedding, k)
@@ -36,4 +36,7 @@ class EmbeddingUtil:
         # Combine and deduplicate indices
         combined_indices = list(set(embedding_indices[0]) | set(tfidf_indices))
         
-        return combined_indices[:k]
+        # Sort combined indices by TF-IDF similarity
+        sorted_indices = sorted(combined_indices, key=lambda i: tfidf_similarities[i], reverse=True)
+        
+        return sorted_indices[:k]
