@@ -32,9 +32,7 @@ def handle_user_input():
             message_placeholder = st.empty()
             full_response = ""
             try:
-                for response_chunk in st.session_state.chatbot.process_user_input(user_input):
-                    full_response += response_chunk
-                    message_placeholder.markdown(full_response + "▌")
+                full_response = st.session_state.chatbot.process_user_input(user_input)
                 message_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
             except Exception as e:

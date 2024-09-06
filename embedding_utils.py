@@ -11,12 +11,15 @@ class EmbeddingUtil:
     def create_embeddings(self, documents):
         """Create embeddings for a list of documents."""
         embeddings = self.model.encode(documents, show_progress_bar=True)
-        tfidf_matrix = self.tfidf_vectorizer.fit_transform(documents)
-        return embeddings, tfidf_matrix
+        return embeddings
+
+    def create_tfidf_matrix(self, documents):
+        """Create TF-IDF matrix for a list of documents."""
+        return self.tfidf_vectorizer.fit_transform(documents)
 
     def create_faiss_index(self, embeddings):
         """Create a FAISS index for similarity search."""
-        embeddings = np.array(embeddings, dtype=np.float32)
+        embeddings = np.array(embeddings).astype('float32')
         dimension = embeddings.shape[1]
         index = faiss.IndexFlatL2(dimension)
         index.add(embeddings)
@@ -24,7 +27,7 @@ class EmbeddingUtil:
 
     def search_similar(self, query, index, embeddings, k=5):
         """Search for similar documents based on the query."""
-        query_embedding = np.array(self.model.encode([query]), dtype=np.float32)
+        query_embedding = self.model.encode([query]).astype('float32')
         _, indices = index.search(query_embedding, k)
         return indices[0]
 

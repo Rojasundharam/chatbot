@@ -5,8 +5,6 @@ from config import IDENTITY, TOOLS, MODEL, RAG_PROMPT
 from google_drive_utils import get_drive_service, get_documents, get_document_content
 from embedding_utils import EmbeddingUtil
 import logging
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 load_dotenv()
@@ -25,37 +23,27 @@ class ChatBot:
         self.embedding_util = EmbeddingUtil()
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
-        self.tfidf_vectorizer = TfidfVectorizer()
-        self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(self.documents)
+        self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
 
     def load_documents(self):
         files = get_documents(self.drive_service, self.folder_id)
         documents = []
         for file in files:
             content = get_document_content(self.drive_service, file['id'])
-            # Preprocess the content (e.g., remove special characters, lowercase)
             content = self.preprocess_text(content)
             documents.append(content)
             logging.info(f"Loaded and preprocessed document: {file['name']}")
         return documents
 
     def preprocess_text(self, text):
-        # Implement text preprocessing (e.g., lowercase, remove special characters)
         return text.lower().replace('\n', ' ')
 
     def get_relevant_context(self, query, max_tokens=50000):
-        # Combine embedding-based and TF-IDF-based similarity
-        embedding_similar_indices = self.embedding_util.search_similar(query, self.index, self.embeddings)
-        tfidf_query_vec = self.tfidf_vectorizer.transform([query])
-        tfidf_similarities = cosine_similarity(tfidf_query_vec, self.tfidf_matrix).flatten()
-        tfidf_similar_indices = tfidf_similarities.argsort()[-5:][::-1]  # Top 5 TF-IDF similar docs
-
-        # Combine and deduplicate indices
-        combined_indices = list(set(embedding_similar_indices) | set(tfidf_similar_indices))
-
+        similar_indices = self.embedding_util.hybrid_search(query, self.index, self.embeddings, self.tfidf_matrix)
+        
         context = ""
         total_tokens = 0
-        for i in combined_indices:
+        for i in similar_indices:
             document = self.documents[i]
             document_tokens = self.anthropic.count_tokens(document)
             if total_tokens + document_tokens > max_tokens:
@@ -79,8 +67,6 @@ class ChatBot:
             raise
 
     def expand_query(self, query):
-        # Implement query expansion techniques (e.g., synonyms, related terms)
-        # This is a simple example; you might want to use more sophisticated methods
         expanded_terms = {
             "course": ["program", "curriculum", "study"],
             "admission": ["enrollment", "registration", "apply"],
