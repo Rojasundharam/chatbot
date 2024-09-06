@@ -1,5 +1,7 @@
 import os
 import pickle
+import re
+import io
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from anthropic import Anthropic
@@ -9,7 +11,6 @@ from embedding_utils import EmbeddingUtil
 from file_processor import extract_file_text, get_file_ext
 import logging
 import numpy as np
-import io
 
 load_dotenv()
 
@@ -54,6 +55,10 @@ class ChatBot:
 
     def update_cache(self):
         self.documents = self.load_documents()
+        if not self.documents:
+            logging.error("No documents were loaded. Cannot update cache.")
+            return
+
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
         self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
@@ -80,7 +85,12 @@ class ChatBot:
             file_extension = get_file_ext(file['name'])
             
             try:
-                extracted_text = extract_file_text(file['name'], io.BytesIO(content))
+                # Create a BytesIO object from the content
+                file_like_object = io.BytesIO(content)
+                
+                # Pass the file name and the file-like object to extract_file_text
+                extracted_text = extract_file_text(file['name'], file_like_object)
+                
                 processed_content = self.preprocess_text(extracted_text)
                 documents.append(processed_content)
                 logging.info(f"Loaded and preprocessed document: {file['name']}")
