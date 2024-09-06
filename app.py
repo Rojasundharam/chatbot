@@ -20,7 +20,7 @@ def display_chat_history():
     
     if "chat_sessions" not in st.session_state:
         st.session_state.chat_sessions = {"Current Chat": st.session_state.messages}
-
+    
     for chat_name, messages in st.session_state.chat_sessions.items():
         if st.sidebar.checkbox(chat_name):
             for i, message in enumerate(messages):
@@ -54,7 +54,7 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
+        
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
@@ -78,7 +78,7 @@ def main():
         st.session_state.messages = st.session_state.chat_sessions[chat_name]
         st.experimental_rerun()
 
-    # Add a clear chat button
+    # Add a clear chat button 
     if st.sidebar.button("Clear Current Chat"):
         st.session_state.messages = [
             {"role": "assistant", "content": "Hello! How can I help you today?"}

@@ -43,6 +43,7 @@ class ChatBot:
                 self.embeddings = cache_data['embeddings']
                 self.index = cache_data['index']
                 self.tfidf_matrix = cache_data['tfidf_matrix']
+                self.embedding_util = EmbeddingUtil()  # Initialize embedding_util here
                 logging.info("Loaded data from cache")
                 return
 
@@ -50,7 +51,7 @@ class ChatBot:
 
     def update_cache(self):
         self.documents = self.load_documents()
-        self.embedding_util = EmbeddingUtil()
+        self.embedding_util = EmbeddingUtil()  # Initialize embedding_util here
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
         self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)

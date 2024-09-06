@@ -33,13 +33,13 @@ class EmbeddingUtil:
 
     def hybrid_search(self, query, index, embeddings, tfidf_matrix, k=5):
         """Perform a hybrid search using both embeddings and TF-IDF."""
-        embedding_indices = self.search_similar(query, index, embeddings, k)
+        embedding_indices = self.search_similar(query, index, embeddings, k)        
         
         tfidf_query_vec = self.tfidf_vectorizer.transform([query])
         tfidf_similarities = tfidf_query_vec.dot(tfidf_matrix.T).toarray()[0]
         tfidf_indices = tfidf_similarities.argsort()[-k:][::-1]
-
+        
         # Combine and deduplicate indices
-        combined_indices = list(set(embedding_indices) | set(tfidf_indices))
+        combined_indices = list(set(embedding_indices) | set(tfidf_indices))        
         
         return combined_indices[:k]
