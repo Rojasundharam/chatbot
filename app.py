@@ -29,13 +29,13 @@ def main():
     if user_msg:
         try:
             full_response = st.session_state.chatbot.process_user_input(user_msg)
-            st.session_state.messages.append({'role': 'assistant', 'content': full_response})
             st.write(f"Assistant: {full_response}")
         except ValueError as e:
             st.error(f"Error: {str(e)}")
+            logging.error(f"ValueError in processing user input: {str(e)}")
         except Exception as e:
-            logging.error(f"Unexpected error: {str(e)}")
             st.error("An unexpected error occurred. Please try again with a shorter or simpler question.")
+            logging.error(f"Unexpected error in processing user input: {str(e)}")
 
 if __name__ == "__main__":
     main()

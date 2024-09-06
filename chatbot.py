@@ -55,8 +55,16 @@ class ChatBot:
         )
         return response
 
+    def validate_message_history(self, messages):
+        if len(messages) < 2:
+            return True  # Not enough messages to cause an issue
+        for i in range(1, len(messages)):
+            if messages[i]['role'] == messages[i-1]['role']:
+                return False  # Found consecutive messages with the same role
+        return True
+
     def process_user_input(self, user_input):
-        if self.session_state.messages[-1]['role'] != "assistant":
+        if self.session_state.messages[-1]['role'] == "user":
             raise ValueError("Multiple 'user' messages detected in a row. Assistant must respond before the next user message.")
 
         context = self.get_relevant_context(user_input)
@@ -72,11 +80,14 @@ class ChatBot:
 
         self.session_state.messages.append({"role": "user", "content": rag_message})
 
-        response_message = self.generate_message(self.session_state.messages)
-        if "error" in response_message:
-            return f"An error occurred: {response_message['error']}"
+        if not self.validate_message_history(self.session_state.messages):
+            raise ValueError("Invalid message history: roles must alternate between user and assistant")
 
-        assistant_response = response_message.content[0].text
-        self.session_state.messages.append({"role": "assistant", "content": assistant_response})
-
-        return assistant_response
+        try:
+            response_message = self.generate_message(self.session_state.messages)
+            assistant_response = response_message.content[0].text
+            self.session_state.messages.append({"role": "assistant", "content": assistant_response})
+            return assistant_response
+        except Exception as e:
+            logging.error(f"Error generating message: {str(e)}")
+            raise
