@@ -8,7 +8,6 @@ from google_drive_utils import get_drive_service, get_documents, get_document_co
 from embedding_utils import EmbeddingUtil
 import logging
 import numpy as np
-import re
 
 load_dotenv()
 
@@ -27,10 +26,7 @@ class ChatBot:
             self.drive_service = get_drive_service()
             self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"
             
-<<<<<<< HEAD
             self.embedding_util = EmbeddingUtil()  # Always initialize EmbeddingUtil
-=======
->>>>>>> d2e4138e7a7136b31e3c562167e9b6e9e687d0e9
             self.load_or_update_cache()
             
             logging.info("ChatBot initialized successfully")
@@ -48,14 +44,8 @@ class ChatBot:
                 self.embeddings = cache_data['embeddings']
                 self.index = cache_data['index']
                 self.tfidf_matrix = cache_data['tfidf_matrix']
-<<<<<<< HEAD
                 logging.info("Loaded data from cache")
                 self.check_cache_update()
-=======
-                self.embedding_util = EmbeddingUtil()
-                self.embedding_util.tfidf_vectorizer.fit(self.documents)
-                logging.info("Loaded data from cache")
->>>>>>> d2e4138e7a7136b31e3c562167e9b6e9e687d0e9
                 return
 
         self.update_cache()
@@ -65,20 +55,6 @@ class ChatBot:
         self.embeddings = self.embedding_util.create_embeddings(self.documents)
         self.index = self.embedding_util.create_faiss_index(self.embeddings)
         self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
-        self.embedding_util.tfidf_vectorizer.fit(self.documents)
-
-        cache_data = {
-            'timestamp': datetime.now(),
-            'documents': self.documents,
-            'embeddings': self.embeddings,
-            'index': self.index,
-            'tfidf_matrix': self.tfidf_matrix
-        }
-
-        with open(CACHE_FILE, 'wb') as f:
-            pickle.dump(cache_data, f)
-        
-        logging.info("Updated and saved cache")
 
         cache_data = {
             'timestamp': datetime.now(),
@@ -109,10 +85,7 @@ class ChatBot:
         return documents
 
     def preprocess_text(self, text):
-        text = text.lower()
-        text = re.sub(r'\W+', ' ', text)
-        text = re.sub(r'\s+', ' ', text)
-        return text
+        return text.lower().replace('\n', ' ')
 
     def get_relevant_context(self, query, max_tokens=50000):
         similar_indices = self.embedding_util.hybrid_search(query, self.index, self.embeddings, self.tfidf_matrix)
@@ -144,10 +117,9 @@ class ChatBot:
 
     def expand_query(self, query):
         expanded_terms = {
-            "course": ["program", "curriculum", "study", "degree", "education"],
-            "admission": ["enrollment", "registration", "apply", "application", "entrance"],
-            "facility": ["infrastructure", "amenity", "resource", "equipment", "building"],
-            "jkkn": ["jk knowledge network", "jk institutions", "jk colleges"],
+            "course": ["program", "curriculum", "study"],
+            "admission": ["enrollment", "registration", "apply"],
+            "facility": ["infrastructure", "amenity", "resource"],
         }
         expanded_query = query
         for term, expansions in expanded_terms.items():
@@ -158,26 +130,19 @@ class ChatBot:
     def process_user_input(self, user_input):
         try:
             logging.info(f"Processing user input: {user_input}")
-<<<<<<< HEAD
             
             # Check for greetings
             greetings = ["hi", "hello", "hey", "greetings"]
             if user_input.lower() in greetings:
                 return "Hello! Welcome to JKKN Assist. How can I help you with information about JKKN Educational Institutions today?"
             
-=======
->>>>>>> d2e4138e7a7136b31e3c562167e9b6e9e687d0e9
             expanded_query = self.expand_query(user_input)
             logging.info(f"Expanded query: {expanded_query}")
             context = self.get_relevant_context(expanded_query)
             
             if not context:
                 logging.warning("No relevant context found")
-<<<<<<< HEAD
                 return "I'm sorry, but I couldn't find any specific information related to your query. Could you please ask a more detailed question about JKKN institutions, such as about courses, admissions, or facilities?"
-=======
-                return "I'm sorry, but I couldn't find any relevant information in my knowledge base to answer your question. Could you please rephrase or ask about a different topic related to JKKN institutions?"
->>>>>>> d2e4138e7a7136b31e3c562167e9b6e9e687d0e9
 
             rag_message = f"""Based on the following information from JKKN institutional documents, please answer the user's question:
 
