@@ -46,48 +46,34 @@ class ChatBot:
         return context
 
     def generate_message(self, messages, max_tokens=2048):
-        response = self.anthropic.messages.create(
-            model=MODEL,
-            system=IDENTITY,
-            max_tokens=max_tokens,
-            messages=messages,
-            tools=TOOLS,
-        )
-        return response
-
-    def validate_message_history(self, messages):
-        if len(messages) < 2:
-            return True  # Not enough messages to cause an issue
-        for i in range(1, len(messages)):
-            if messages[i]['role'] == messages[i-1]['role']:
-                return False  # Found consecutive messages with the same role
-        return True
-
-    def process_user_input(self, user_input):
-        if self.session_state.messages[-1]['role'] == "user":
-            raise ValueError("Multiple 'user' messages detected in a row. Assistant must respond before the next user message.")
-
-        context = self.get_relevant_context(user_input)
-        rag_message = RAG_PROMPT.format(context=context, question=user_input)
-        
-        # Count tokens in the entire input
-        total_tokens = self.anthropic.count_tokens(rag_message) + sum(self.anthropic.count_tokens(msg['content']) for msg in self.session_state.messages)
-        
-        if total_tokens > 190000:  # Leave some buffer
-            logging.warning(f"Input too long: {total_tokens} tokens. Truncating context.")
-            context = self.get_relevant_context(user_input, max_tokens=50000)  # Adjust as needed
-            rag_message = RAG_PROMPT.format(context=context, question=user_input)
-
-        self.session_state.messages.append({"role": "user", "content": rag_message})
-
-        if not self.validate_message_history(self.session_state.messages):
-            raise ValueError("Invalid message history: roles must alternate between user and assistant")
-
         try:
-            response_message = self.generate_message(self.session_state.messages)
-            assistant_response = response_message.content[0].text
-            self.session_state.messages.append({"role": "assistant", "content": assistant_response})
-            return assistant_response
+            response = self.anthropic.messages.create(
+                model=MODEL,
+                system=IDENTITY,
+                max_tokens=max_tokens,
+                messages=messages,
+                tools=TOOLS,
+            )
+            return response
         except Exception as e:
             logging.error(f"Error generating message: {str(e)}")
             raise
+
+    def process_user_input(self, user_input):
+        context = self.get_relevant_context(user_input)
+        rag_message = RAG_PROMPT.format(context=context, question=user_input)
+        
+        messages_for_api = [
+            {"role": "user", "content": rag_message}
+        ]
+
+        try:
+            response_message = self.generate_message(messages_for_api)
+            assistant_response = response_message.content[0].text
+            return assistant_response
+        except Exception as e:
+            logging.error(f"Error processing user input: {str(e)}")
+            raise
+
+    def get_conversation_history(self):
+        return self.session_state.messages

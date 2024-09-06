@@ -5,37 +5,46 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-def main():
-    st.title("JKKN Assist 🤖")
-
+def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {'role': "user", "content": TASK_SPECIFIC_INSTRUCTIONS},
-            {'role': "assistant", "content": "Understood, I'm ready to assist with inquiries about JKKN Educational Institutions."},
+            {'role': "assistant", "content": "Hello! I'm JKKN Assist, here to help you with information about JKKN Educational Institutions. How may I assist you today?"}
         ]
-    
     if "chatbot" not in st.session_state:
         try:
             st.session_state.chatbot = ChatBot(st.session_state)
         except ValueError as e:
             st.error(f"Error initializing chatbot: {str(e)}")
-            return
 
+def display_conversation_history():
     for message in st.session_state.messages:
-        st.write(f"{message['role'].capitalize()}: {message['content']}")
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    user_msg = st.text_input("Type your question about JKKN institutions here...")
+def handle_user_input():
+    user_input = st.chat_input("Type your question about JKKN institutions here...")
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+        
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            try:
+                full_response = st.session_state.chatbot.process_user_input(user_input)
+                message_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+            except Exception as e:
+                error_message = "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question or asking about a different topic?"
+                message_placeholder.markdown(error_message)
+                st.session_state.messages.append({"role": "assistant", "content": error_message})
+                logging.error(f"Error processing user input: {str(e)}")
 
-    if user_msg:
-        try:
-            full_response = st.session_state.chatbot.process_user_input(user_msg)
-            st.write(f"Assistant: {full_response}")
-        except ValueError as e:
-            st.error(f"Error: {str(e)}")
-            logging.error(f"ValueError in processing user input: {str(e)}")
-        except Exception as e:
-            st.error("An unexpected error occurred. Please try again with a shorter or simpler question.")
-            logging.error(f"Unexpected error in processing user input: {str(e)}")
+def main():
+    st.title("JKKN Assist 🤖")
+    initialize_session_state()
+    display_conversation_history()
+    handle_user_input()
 
 if __name__ == "__main__":
     main()
