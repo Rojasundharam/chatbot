@@ -77,12 +77,12 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
-    # Options row
+    # New Chat button
     col1, col2, col3 = st.columns([1,1,1])
     with col2:
-        if st.button("Clear Chat History"):
+        if st.button("New Chat"):
             st.session_state.messages = [
-                {"role": "assistant", "content": "Chat history cleared. How can I help you?", "time": get_current_time()}
+                {"role": "assistant", "content": "Starting a new chat. How can I help you today?", "time": get_current_time()}
             ]
             st.experimental_rerun()
 
