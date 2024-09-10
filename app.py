@@ -37,9 +37,9 @@ def main():
     # Logo and title
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("  ", width=100)  # Replace with your actual logo
+        st.image("https://via.placeholder.com/100", width=100)  # Replace with your actual logo
     with col2:
-        st.markdown('<p class="logo-text">JKKN ASSIST</p>', unsafe_allow_html=True)
+        st.markdown('<p class="logo-text">JKKN Assist 🎓</p>', unsafe_allow_html=True)
     
     st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
 
@@ -53,7 +53,7 @@ def main():
 
     # Sidebar with New Chat button
     with st.sidebar:
-        st.title("JKKN ASSIST")
+        st.title("Options")
         if st.button("New Chat"):
             start_new_chat()
             st.rerun()
