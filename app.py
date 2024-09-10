@@ -35,12 +35,6 @@ st.markdown("""
         color: #1b5e20;
         text-align: center;
     }
-    .user-avatar {
-        background-color: #4CAF50 !important;
-    }
-    .bot-avatar {
-        background-color: #1b5e20 !important;
-    }
     .gemini-loader {
         display: flex;
         justify-content: center;
@@ -115,7 +109,7 @@ def main():
     # Display chat history
     with chat_container:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"], avatar="user-avatar" if message["role"] == "user" else "bot-avatar"):
+            with st.chat_message(message["role"], avatar="🧑" if message["role"] == "user" else "🤖"):
                 st.write(message["content"])
 
     # User input
@@ -123,10 +117,10 @@ def main():
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
         with chat_container:
-            with st.chat_message("user", avatar="user-avatar"):
+            with st.chat_message("user", avatar="🧑"):
                 st.write(user_input)
             
-            with st.chat_message("assistant", avatar="bot-avatar"):
+            with st.chat_message("assistant", avatar="🤖"):
                 loading_placeholder = st.empty()
                 loading_placeholder.markdown(display_loading_animation(), unsafe_allow_html=True)
                 try:
