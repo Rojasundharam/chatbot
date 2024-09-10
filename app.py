@@ -5,68 +5,74 @@ import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for refined green gradient theme
+# Custom CSS for a professional UI
 st.markdown("""
 <style>
     .stApp {
-        background: linear-gradient(to bottom right, #a8e063, #56ab2f);
+        background-color: #f0f2f6;
+    }
+    .main-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .chat-container {
+        height: 60vh;
+        overflow-y: auto;
+        padding: 1rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        margin-bottom: 1rem;
     }
     .stTextInput > div > div > input {
-        background-color: #e8f5e9;
-        border: 2px solid #4CAF50 !important;
-        border-radius: 20px;
-        padding-left: 15px;
-        color: #1b5e20;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 0.5rem;
     }
     .stTextInput > div > div > input:focus {
-        box-shadow: 0 0 0 2px #4CAF50;
+        border-color: #4CAF50;
+        box-shadow: 0 0 0 1px #4CAF50;
     }
-    .stChatMessage {
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border-radius: 15px;
+    .user-message {
+        background-color: #e7f3fe;
+        border-radius: 15px 15px 0 15px;
         padding: 10px;
-        margin-bottom: 10px;
-        border: 2px solid #4CAF50 !important;
+        margin: 5px 0;
+        text-align: right;
     }
-    .stChatMessageContent {
-        background-color: transparent !important;
-    }
-    h1 {
-        color: #1b5e20;
-        text-align: center;
-    }
-    .gemini-loader {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 40px;
-    }
-    .gemini-loader .dot {
-        width: 10px;
-        height: 10px;
-        margin: 0 5px;
-        background-color: #4CAF50;
-        border-radius: 50%;
-        opacity: 0;
-        animation: pulse 1.5s ease-in-out infinite;
-    }
-    .gemini-loader .dot:nth-child(2) {
-        animation-delay: 0.5s;
-    }
-    .gemini-loader .dot:nth-child(3) {
-        animation-delay: 1s;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 0; transform: scale(0.5); }
-        50% { opacity: 1; transform: scale(1); }
+    .bot-message {
+        background-color: #f0f0f0;
+        border-radius: 15px 15px 15px 0;
+        padding: 10px;
+        margin: 5px 0;
+        text-align: left;
     }
     .stButton > button {
         background-color: #4CAF50;
         color: white;
-        border-radius: 20px;
+        border-radius: 5px;
     }
     .stButton > button:hover {
         background-color: #45a049;
+    }
+    h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .header {
+        background-color: #4CAF50;
+        color: white;
+        padding: 1rem;
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 1rem;
+    }
+    .header h1 {
+        color: white;
+        margin: 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -82,58 +88,50 @@ def initialize_chatbot():
             return False
     return True
 
-def display_loading_animation():
-    return """
-    <div class="gemini-loader">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-    </div>
-    """
-
 def main():
-    st.title("JKKN Assist 🤖")
-    st.write("Ask me anything about JKKN Educational Institutions.")
+    st.set_page_config(page_title="JKKN Assist", page_icon="🎓", layout="wide")
+    
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
+    
+    st.markdown('<div class="header">', unsafe_allow_html=True)
+    st.markdown('<h1>JKKN Assist 🎓</h1>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.write("Welcome to JKKN Assist. How can I help you today?")
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hello! How can I help you today?"}
-        ]
+        st.session_state.messages = []
 
     if not initialize_chatbot():
         st.stop()
 
-    # Create a container for chat messages
-    chat_container = st.container()
-
-    # Display chat history
-    with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"], avatar="🧑" if message["role"] == "user" else "🤖"):
-                st.write(message["content"])
+    # Chat container
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.markdown(f'<div class="user-message">{message["content"]}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="bot-message">{message["content"]}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # User input
-    user_input = st.chat_input("Type your question here")
-    if user_input:
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        with chat_container:
-            with st.chat_message("user", avatar="🧑"):
-                st.write(user_input)
+    user_input = st.text_input("Type your question here", key="user_input")
+    if st.button("Send"):
+        if user_input:
+            st.session_state.messages.append({"role": "user", "content": user_input})
             
-            with st.chat_message("assistant", avatar="🤖"):
-                loading_placeholder = st.empty()
-                loading_placeholder.markdown(display_loading_animation(), unsafe_allow_html=True)
+            with st.spinner("Processing your request..."):
                 try:
                     response = st.session_state.chatbot.process_user_input(user_input)
-                    time.sleep(1)  # Simulating response time
-                    loading_placeholder.empty()
-                    st.write(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 except Exception as e:
-                    loading_placeholder.empty()
                     error_msg = f"Error processing request: {str(e)}"
                     st.error(error_msg)
                     logging.error(error_msg)
+            
+            st.experimental_rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
