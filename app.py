@@ -1,11 +1,10 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
-import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for green theme matching the image
+# Custom CSS for improved UI
 st.markdown("""
 <style>
     .stApp {
@@ -24,13 +23,14 @@ st.markdown("""
         color: white;
         text-align: center;
         margin: 0;
+        font-size: 24px;
     }
     .chat-container {
-        margin-top: 60px;
-        margin-bottom: 60px;
+        margin-top: 70px;
+        margin-bottom: 70px;
         padding: 1rem;
         overflow-y: auto;
-        height: calc(100vh - 120px);
+        height: calc(100vh - 140px);
     }
     .stTextInput {
         position: fixed;
@@ -39,18 +39,48 @@ st.markdown("""
         right: 0;
         padding: 1rem;
         background-color: white;
+        z-index: 1000;
     }
     .stTextInput > div > div > input {
         border-radius: 20px;
+        border: 1px solid #4CAF50;
+        padding-right: 40px;
     }
-    .stChatMessage {
+    .stTextInput > div > div > input:focus {
+        border-color: #4CAF50;
+        box-shadow: 0 0 0 1px #4CAF50;
+    }
+    .stTextInput > div > div::after {
+        content: '➤';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #4CAF50;
+        font-size: 20px;
+    }
+    .user-message {
+        background-color: #DCF8C6;
+        border-radius: 15px;
+        padding: 10px;
+        margin: 5px 0;
+        max-width: 70%;
+        align-self: flex-end;
+        float: right;
+        clear: both;
+    }
+    .bot-message {
         background-color: white;
         border-radius: 15px;
         padding: 10px;
-        margin-bottom: 10px;
+        margin: 5px 0;
+        max-width: 70%;
+        align-self: flex-start;
+        float: left;
+        clear: both;
     }
-    .stChatMessageContent {
-        background-color: transparent !important;
+    div[data-testid="stVerticalBlock"] {
+        padding-bottom: 70px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -65,11 +95,6 @@ def initialize_chatbot():
             st.error(f"Failed to initialize ChatBot: {str(e)}")
             return False
     return True
-
-def simulate_typing(placeholder, final_response):
-    placeholder.markdown('<span class="typing-animation">Typing</span>', unsafe_allow_html=True)
-    time.sleep(1)  # Simulating typing time
-    placeholder.markdown(final_response)
 
 def main():
     st.markdown('<div class="stHeader"><h1>JKKN Assist 🤖</h1></div>', unsafe_allow_html=True)
@@ -89,28 +114,25 @@ def main():
     with chat_container:
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+            if message["role"] == "user":
+                st.markdown(f'<div class="user-message">{message["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="bot-message">{message["content"]}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # User input
-    user_input = st.chat_input("Type your question here")
+    user_input = st.text_input("Type your question here", key="user_input")
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
-        with chat_container:
-            with st.chat_message("user"):
-                st.write(user_input)
-            
-            with st.chat_message("assistant"):
-                response_placeholder = st.empty()
-                try:
-                    response = st.session_state.chatbot.process_user_input(user_input)
-                    simulate_typing(response_placeholder, response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Error processing request: {str(e)}"
-                    st.error(error_msg)
-                    logging.error(error_msg)
+        try:
+            response = st.session_state.chatbot.process_user_input(user_input)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+        except Exception as e:
+            error_msg = f"Error processing request: {str(e)}"
+            st.error(error_msg)
+            logging.error(error_msg)
+        
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
