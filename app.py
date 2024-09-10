@@ -15,12 +15,13 @@ st.markdown("""
     }
     .main .block-container {
         padding-top: 2rem;
-        padding-bottom: 2rem;
+        padding-bottom: 3rem;
         max-width: 800px;
     }
     .sidebar .sidebar-content {
         background-color: #202123;
         color: white;
+        padding: 1rem;
     }
     .sidebar .sidebar-content .block-container {
         padding-top: 2rem;
@@ -73,12 +74,24 @@ st.markdown("""
         background-color: #0f9c5d;
     }
     .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 22%; /* Adjust based on your sidebar width */
+        right: 0;
+        padding: 1rem;
+        background-color: #ffffff;
+        z-index: 1000;
         display: flex;
         align-items: center;
     }
     .input-container > div:first-child {
         flex-grow: 1;
         margin-right: 0.5rem;
+    }
+    .chat-container {
+        height: calc(100vh - 200px);
+        overflow-y: auto;
+        padding-right: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -101,31 +114,39 @@ def main():
         st.markdown("Welcome to JKKN Assist. How can I help you today?")
         
         if st.button("Clear Conversation"):
-            st.session_state.messages = []
+            st.session_state.messages = [
+                {"role": "assistant", "content": "Hello! How can I assist you with information about JKKN Educational Institutions today?"}
+            ]
             st.rerun()
 
     # Main chat interface
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! How can I assist you with information about JKKN Educational Institutions today?"}
+        ]
 
     if not initialize_chatbot():
         st.stop()
 
     # Display chat messages
-    for message in st.session_state.messages:
-        with st.container():
-            if message["role"] == "user":
-                st.markdown(f'<div class="chat-message user"><div class="avatar"><img src="https://i.imgur.com/4KeKvtH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="chat-message bot"><div class="avatar"><img src="https://i.imgur.com/p1thPfH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
+    chat_container = st.container()
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.container():
+                if message["role"] == "user":
+                    st.markdown(f'<div class="chat-message user"><div class="avatar"><img src="https://i.imgur.com/4KeKvtH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="chat-message bot"><div class="avatar"><img src="https://i.imgur.com/p1thPfH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
 
     # User input
     with st.container():
+        st.markdown('<div class="input-container">', unsafe_allow_html=True)
         col1, col2 = st.columns([6, 1])
         with col1:
             user_input = st.text_input("Type your message here...", key="user_input")
         with col2:
             send_button = st.button("Send")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if send_button and user_input:
             st.session_state.messages.append({"role": "user", "content": user_input})
