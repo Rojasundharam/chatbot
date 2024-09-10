@@ -62,21 +62,18 @@ def initialize_chatbot():
             return False
     return True
 
-def get_current_time():
-    return datetime.now().strftime("%H:%M")
-
 def start_new_chat():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Starting a new chat. How can I help you today?", "time": get_current_time()}
+        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
     ]
 
 def main():
-    st.title("JKKN ASSIST 🎓")
+    st.title("JKKN Assist 🎓")
     st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hello! How can I assist you with information about JKKN Educational Institutions today?", "time": get_current_time()}
+            {"role": "assistant", "content": "Hello! How can I assist you with information about JKKN Educational Institutions today?"}
         ]
 
     if not initialize_chatbot():
@@ -84,7 +81,7 @@ def main():
 
     # Sidebar with New Chat button
     with st.sidebar:
-        st.title("JKKN ASSIST")
+        st.title("Options")
         if st.button("New Chat"):
             start_new_chat()
             st.rerun()
@@ -92,22 +89,20 @@ def main():
     # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.write(f"{message['content']} - {message['time']}")
+            st.write(message["content"])
 
     # User input
     if prompt := st.chat_input("Type your question here..."):
-        current_time = get_current_time()
-        st.session_state.messages.append({"role": "user", "content": prompt, "time": current_time})
+        st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
-            st.write(f"{prompt} - {current_time}")
+            st.write(prompt)
         
         with st.chat_message("assistant"):
             with st.spinner("Processing your request..."):
                 try:
                     response = st.session_state.chatbot.process_user_input(prompt)
-                    current_time = get_current_time()
-                    st.write(f"{response} - {current_time}")
-                    st.session_state.messages.append({"role": "assistant", "content": response, "time": current_time})
+                    st.write(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
                 except Exception as e:
                     error_msg = f"Error processing request: {str(e)}"
                     st.error(error_msg)
