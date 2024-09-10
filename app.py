@@ -3,7 +3,39 @@ from chatbot import ChatBot
 import logging
 from PIL import Image
 
-# [Previous code remains the same]
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Custom CSS for layout
+st.markdown("""
+<style>
+    .logo-text {
+        font-size: 24px;
+        font-weight: bold;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+    .logo-img {
+        vertical-align: middle;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+def initialize_chatbot():
+    if "chatbot" not in st.session_state:
+        try:
+            st.session_state.chatbot = ChatBot(st.session_state)
+            logging.info("ChatBot initialized successfully")
+        except Exception as e:
+            logging.error(f"Error initializing ChatBot: {str(e)}")
+            st.error(f"Failed to initialize ChatBot: {str(e)}")
+            return False
+    return True
+
+def start_new_chat():
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
+    ]
 
 def main():
     # Load and display logo
