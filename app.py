@@ -1,41 +1,9 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
-from PIL import Image  # Add this import
+from PIL import Image
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Minimal custom CSS for layout
-st.markdown("""
-<style>
-    .logo-text {
-        font-size: 24px;
-        font-weight: bold;
-        margin-left: 10px;
-        vertical-align: middle;
-    }
-    .logo-img {
-        vertical-align: middle;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-def initialize_chatbot():
-    if "chatbot" not in st.session_state:
-        try:
-            st.session_state.chatbot = ChatBot(st.session_state)
-            logging.info("ChatBot initialized successfully")
-        except Exception as e:
-            logging.error(f"Error initializing ChatBot: {str(e)}")
-            st.error(f"Failed to initialize ChatBot: {str(e)}")
-            return False
-    return True
-
-def start_new_chat():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
-    ]
+# [Previous code remains the same]
 
 def main():
     # Load and display logo
@@ -65,27 +33,32 @@ def main():
             start_new_chat()
             st.rerun()
 
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    # Create a container for chat history
+    chat_container = st.container()
 
     # User input
-    if prompt := st.chat_input("Type your question here..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
+    user_input = st.text_input("Type your question here...", key="user_input")
+
+    # Process user input and update chat history
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.spinner("Processing your request..."):
+            try:
+                response = st.session_state.chatbot.process_user_input(user_input)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            except Exception as e:
+                error_msg = f"Error processing request: {str(e)}"
+                st.error(error_msg)
+                logging.error(error_msg)
         
-        with st.chat_message("assistant"):
-            with st.spinner("Processing your request..."):
-                try:
-                    response = st.session_state.chatbot.process_user_input(prompt)
-                    st.write(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Error processing request: {str(e)}"
-                    st.error(error_msg)
-                    logging.error(error_msg)
+        # Clear the input box after processing
+        st.session_state.user_input = ""
+
+    # Display chat history
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
 if __name__ == "__main__":
     main()
