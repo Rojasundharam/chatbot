@@ -1,52 +1,47 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
-from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for a more professional theme
+# Custom CSS for gradient theme and logo
 st.markdown("""
 <style>
     .stApp {
-        background-color: #f0f2f6;
+        background: linear-gradient(135deg, #1e3a8a, #3b82f6);
     }
     .stTextInput > div > div > input {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 5px;
     }
     .stChatMessage {
-        background-color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
         border-radius: 10px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         margin-bottom: 10px;
     }
     .stChatMessageContent {
-        background-color: transparent !important;
+        color: white !important;
     }
-    h1, h2, h3 {
-        color: #1e3a8a;
+    h1, h2, h3, p {
+        color: white;
     }
     .stButton>button {
-        background-color: #1e3a8a;
+        background-color: #3b82f6;
         color: white;
         border-radius: 5px;
     }
     .stButton>button:hover {
-        background-color: #2c5282;
+        background-color: #2563eb;
     }
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #f0f2f6;
-        color: #1e3a8a;
-        text-align: center;
-        padding: 10px 0;
-        font-size: 14px;
+    .logo-text {
+        font-size: 24px;
+        font-weight: bold;
+        margin-left: 10px;
+        vertical-align: middle;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -68,7 +63,13 @@ def start_new_chat():
     ]
 
 def main():
-    st.title("JKKN Assist 🎓")
+    # Logo and title
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        st.image("https://via.placeholder.com/100", width=100)  # Replace with your actual logo
+    with col2:
+        st.markdown('<p class="logo-text">JKKN Assist 🎓</p>', unsafe_allow_html=True)
+    
     st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
 
     if "messages" not in st.session_state:
@@ -107,17 +108,6 @@ def main():
                     error_msg = f"Error processing request: {str(e)}"
                     st.error(error_msg)
                     logging.error(error_msg)
-
-    # Footer
-    st.markdown(
-        """
-        <div class="footer">
-            JKKN Assist v1.0 | © 2024 JKKN Educational Institutions | 
-            <a href="https://www.jkkn.edu.in" target="_blank">Visit our website</a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 if __name__ == "__main__":
     main()
