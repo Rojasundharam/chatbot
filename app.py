@@ -37,7 +37,7 @@ def main():
     # Logo and title
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("https://via.placeholder.com/100", width=50)  # Replace with your actual logo
+        st.image("jkkn_logo.png", width=50)  # Using your JKKN logo
     with col2:
         st.markdown('<p class="logo-text">JKKN ASSIST</p>', unsafe_allow_html=True)
     
