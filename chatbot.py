@@ -8,9 +8,10 @@ from anthropic import Anthropic
 from config import IDENTITY, TOOLS, MODEL, RAG_PROMPT
 from google_drive_utils import get_drive_service, get_documents, get_document_content
 from embedding_utils import EmbeddingUtil
-from file_processor import extract_file_text, get_file_ext
 import logging
 import numpy as np
+import docx
+from pypdf import PdfReader
 
 load_dotenv()
 
@@ -85,14 +86,21 @@ class ChatBot:
         documents = []
         for file in files:
             content = get_document_content(self.drive_service, file['id'])
-            file_extension = get_file_ext(file['name'])
+            file_extension = os.path.splitext(file['name'])[1].lower()
             
             try:
-                # Convert content to bytes if it's a string
-                if isinstance(content, str):
-                    content = content.encode('utf-8')
-                
-                extracted_text = extract_file_text(file['name'], io.BytesIO(content))
+                if file_extension == '.docx':
+                    doc = docx.Document(io.BytesIO(content))
+                    extracted_text = "\n".join([para.text for para in doc.paragraphs])
+                elif file_extension == '.pdf':
+                    pdf_reader = PdfReader(io.BytesIO(content))
+                    extracted_text = "\n".join([page.extract_text() for page in pdf_reader.pages])
+                elif file_extension in ['.txt', '.md']:
+                    extracted_text = content.decode('utf-8', errors='ignore')
+                else:
+                    logging.warning(f"Unsupported file type: {file['name']}")
+                    continue
+
                 processed_content = self.preprocess_text(extracted_text)
                 documents.append(processed_content)
                 logging.info(f"Loaded and preprocessed document: {file['name']}")

@@ -1,6 +1,8 @@
 import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+import io
 
 def get_drive_service():
     """Authenticate and return the Google Drive service."""
@@ -19,13 +21,12 @@ def get_documents(service, folder_id):
     return files
 
 def get_document_content(service, file_id):
-    """Retrieve the content of a document from Google Drive with flexible encoding."""
+    """Retrieve the raw content of a document from Google Drive."""
     request = service.files().get_media(fileId=file_id)
-    content = request.execute()
-
-    try:
-        # Try decoding with UTF-8 first
-        return content.decode('utf-8')
-    except UnicodeDecodeError:
-        # If decoding fails, try ISO-8859-1 or any other encoding that might work
-        return content.decode('ISO-8859-1')
+    file = io.BytesIO()
+    downloader = MediaIoBaseDownload(file, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+    file.seek(0)
+    return file.read()
