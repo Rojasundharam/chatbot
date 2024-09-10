@@ -65,6 +65,11 @@ def initialize_chatbot():
 def get_current_time():
     return datetime.now().strftime("%H:%M")
 
+def start_new_chat():
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Starting a new chat. How can I help you today?", "time": get_current_time()}
+    ]
+
 def main():
     st.title("JKKN Assist 🎓")
     st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
@@ -81,10 +86,8 @@ def main():
     col1, col2, col3 = st.columns([1,1,1])
     with col2:
         if st.button("New Chat"):
-            st.session_state.messages = [
-                {"role": "assistant", "content": "Starting a new chat. How can I help you today?", "time": get_current_time()}
-            ]
-            st.experimental_rerun()
+            start_new_chat()
+            st.rerun()
 
     # Display chat history
     for message in st.session_state.messages:
