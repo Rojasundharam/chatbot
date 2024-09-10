@@ -37,6 +37,17 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #2c5282;
     }
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f0f2f6;
+        color: #1e3a8a;
+        text-align: center;
+        padding: 10px 0;
+        font-size: 14px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,16 +77,14 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
-    # Sidebar for additional options
-    with st.sidebar:
-        st.header("Options")
+    # Options row
+    col1, col2, col3 = st.columns([1,1,1])
+    with col2:
         if st.button("Clear Chat History"):
             st.session_state.messages = [
                 {"role": "assistant", "content": "Chat history cleared. How can I help you?", "time": get_current_time()}
             ]
-        st.write("---")
-        st.write("JKKN Assist v1.0")
-        st.write("© 2024 JKKN Educational Institutions")
+            st.experimental_rerun()
 
     # Display chat history
     for message in st.session_state.messages:
@@ -102,8 +111,15 @@ def main():
                     logging.error(error_msg)
 
     # Footer
-    st.markdown("---")
-    st.markdown("For more information, visit [JKKN Educational Institutions](https://www.jkkn.edu.in)")
+    st.markdown(
+        """
+        <div class="footer">
+            JKKN Assist v1.0 | © 2024 JKKN Educational Institutions | 
+            <a href="https://www.jkkn.edu.in" target="_blank">Visit our website</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
