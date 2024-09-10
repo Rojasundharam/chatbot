@@ -71,7 +71,7 @@ def start_new_chat():
     ]
 
 def main():
-    st.title("JKKN Assist 🎓")
+    st.title("JKKN ASSIST 🎓")
     st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
 
     if "messages" not in st.session_state:
@@ -84,7 +84,7 @@ def main():
 
     # Sidebar with New Chat button
     with st.sidebar:
-        st.title("Options")
+        st.title("JKKN ASSIST")
         if st.button("New Chat"):
             start_new_chat()
             st.rerun()
