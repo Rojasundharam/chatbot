@@ -15,15 +15,17 @@ st.markdown("""
         background-color: #e8f5e9;
     }
     .stChatMessage {
-        background-color: rgba(255, 255, 255, 0.7) !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
         border-radius: 15px;
         padding: 10px;
+        margin-bottom: 10px;
     }
     .stChatMessageContent {
         background-color: transparent !important;
     }
     h1 {
         color: #1b5e20;
+        text-align: center;
     }
     .typing-animation::after {
         content: '...';
@@ -53,7 +55,7 @@ def initialize_chatbot():
 
 def simulate_typing(placeholder, final_response):
     placeholder.markdown('<span class="typing-animation">Typing</span>', unsafe_allow_html=True)
-    time.sleep(2)  # Simulating typing time
+    time.sleep(1)  # Simulating typing time
     placeholder.markdown(final_response)
 
 def main():
@@ -68,27 +70,33 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
+    # Create a container for chat messages
+    chat_container = st.container()
+
     # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
     # User input
-    if prompt := st.chat_input("Type your question here"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            try:
-                response = st.session_state.chatbot.process_user_input(prompt)
-                simulate_typing(response_placeholder, response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            except Exception as e:
-                error_msg = f"Error processing request: {str(e)}"
-                st.error(error_msg)
-                logging.error(error_msg)
+    user_input = st.chat_input("Type your question here")
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with chat_container:
+            with st.chat_message("user"):
+                st.write(user_input)
+            
+            with st.chat_message("assistant"):
+                response_placeholder = st.empty()
+                try:
+                    response = st.session_state.chatbot.process_user_input(user_input)
+                    simulate_typing(response_placeholder, response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                except Exception as e:
+                    error_msg = f"Error processing request: {str(e)}"
+                    st.error(error_msg)
+                    logging.error(error_msg)
 
 if __name__ == "__main__":
     main()
