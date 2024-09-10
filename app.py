@@ -1,12 +1,12 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
-from PIL import Image  # Add this import
+from PIL import Image
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Minimal custom CSS for layout
+# Custom CSS for layout and green input box
 st.markdown("""
 <style>
     .logo-text {
@@ -18,24 +18,26 @@ st.markdown("""
     .logo-img {
         vertical-align: middle;
     }
+    /* Green input box styles */
+    .stTextInput > div > div > input {
+        border-color: #4CAF50 !important;
+        box-shadow: 0 0 0 1px #4CAF50 !important;
+    }
+    .stTextInput > div > div > input:focus {
+        box-shadow: 0 0 0 2px #45a049 !important;
+    }
+    /* Changing the color of the send button */
+    .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-def initialize_chatbot():
-    if "chatbot" not in st.session_state:
-        try:
-            st.session_state.chatbot = ChatBot(st.session_state)
-            logging.info("ChatBot initialized successfully")
-        except Exception as e:
-            logging.error(f"Error initializing ChatBot: {str(e)}")
-            st.error(f"Failed to initialize ChatBot: {str(e)}")
-            return False
-    return True
-
-def start_new_chat():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
-    ]
+# ... [rest of your code remains the same]
 
 def main():
     # Load and display logo
