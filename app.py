@@ -20,8 +20,7 @@ st.markdown("""
     }
     .sidebar .sidebar-content {
         background-color: #202123;
-        color: white;
-        padding: 1rem;
+        color: #ffffff;
     }
     .sidebar .sidebar-content .block-container {
         padding-top: 2rem;
@@ -92,6 +91,11 @@ st.markdown("""
         height: calc(100vh - 200px);
         overflow-y: auto;
         padding-right: 1rem;
+        margin-bottom: 100px;
+    }
+    .sidebar .stButton > button {
+        background-color: #ffffff;
+        color: #202123;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -111,7 +115,7 @@ def main():
     # Sidebar
     with st.sidebar:
         st.title("JKKN Assist 🎓")
-        st.markdown("Welcome to JKKN Assist. How can I help you today?")
+        st.markdown("<p style='color: #ffffff;'>Welcome to JKKN Assist. How can I help you today?</p>", unsafe_allow_html=True)
         
         if st.button("Clear Conversation"):
             st.session_state.messages = [
@@ -131,12 +135,13 @@ def main():
     # Display chat messages
     chat_container = st.container()
     with chat_container:
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         for message in st.session_state.messages:
-            with st.container():
-                if message["role"] == "user":
-                    st.markdown(f'<div class="chat-message user"><div class="avatar"><img src="https://i.imgur.com/4KeKvtH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="chat-message bot"><div class="avatar"><img src="https://i.imgur.com/p1thPfH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
+            if message["role"] == "user":
+                st.markdown(f'<div class="chat-message user"><div class="avatar"><img src="https://i.imgur.com/4KeKvtH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="chat-message bot"><div class="avatar"><img src="https://i.imgur.com/p1thPfH.png"/></div><div class="message">{message["content"]}</div></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # User input
     with st.container():
