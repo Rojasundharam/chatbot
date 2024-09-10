@@ -1,6 +1,7 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
+from PIL import Image  # Add this import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -12,6 +13,9 @@ st.markdown("""
         font-size: 24px;
         font-weight: bold;
         margin-left: 10px;
+        vertical-align: middle;
+    }
+    .logo-img {
         vertical-align: middle;
     }
 </style>
@@ -34,10 +38,12 @@ def start_new_chat():
     ]
 
 def main():
-    # Logo and title
+    # Load and display logo
+    logo = Image.open("jkkn_logo.png")  # Replace with your actual logo file name
+    
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("https://via.placeholder.com/100", width=50)  # Replace with your actual logo
+        st.image(logo, width=50, output_format="PNG")
     with col2:
         st.markdown('<p class="logo-text">JKKN ASSIST</p>', unsafe_allow_html=True)
     
@@ -51,8 +57,9 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
-    # Sidebar with New Chat button
+    # Sidebar with New Chat button and logo
     with st.sidebar:
+        st.image(logo, width=100, output_format="PNG")
         st.title("JKKN ASSIST")
         if st.button("New Chat"):
             start_new_chat()
