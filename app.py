@@ -3,6 +3,9 @@ from chatbot import ChatBot
 import logging
 import time
 
+# Set page config at the very beginning
+st.set_page_config(page_title="JKKN Assist", page_icon="🎓", layout="wide")
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Custom CSS for a professional UI
@@ -89,8 +92,6 @@ def initialize_chatbot():
     return True
 
 def main():
-    st.set_page_config(page_title="JKKN Assist", page_icon="🎓", layout="wide")
-    
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
     st.markdown('<div class="header">', unsafe_allow_html=True)
