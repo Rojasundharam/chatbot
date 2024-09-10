@@ -66,16 +66,14 @@ def initialize_chatbot():
             return False
     return True
 
-def simulate_typing(placeholder, final_response):
-    placeholder.markdown("""
+def display_loading_animation():
+    return """
     <div class="gemini-loader">
         <div class="dot"></div>
         <div class="dot"></div>
         <div class="dot"></div>
     </div>
-    """, unsafe_allow_html=True)
-    time.sleep(2)  # Simulating response time
-    placeholder.markdown(final_response)
+    """
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -107,12 +105,16 @@ def main():
                 st.write(user_input)
             
             with st.chat_message("assistant"):
-                response_placeholder = st.empty()
+                loading_placeholder = st.empty()
+                loading_placeholder.markdown(display_loading_animation(), unsafe_allow_html=True)
                 try:
                     response = st.session_state.chatbot.process_user_input(user_input)
-                    simulate_typing(response_placeholder, response)
+                    time.sleep(1)  # Simulating response time
+                    loading_placeholder.empty()
+                    st.write(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 except Exception as e:
+                    loading_placeholder.empty()
                     error_msg = f"Error processing request: {str(e)}"
                     st.error(error_msg)
                     logging.error(error_msg)
