@@ -82,9 +82,9 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
-    # New Chat button
-    col1, col2, col3 = st.columns([1,1,1])
-    with col2:
+    # Sidebar with New Chat button
+    with st.sidebar:
+        st.title("Options")
         if st.button("New Chat"):
             start_new_chat()
             st.rerun()
