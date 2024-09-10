@@ -5,48 +5,14 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for gradient green theme and logo
+# Minimal custom CSS for layout
 st.markdown("""
 <style>
-    .stApp {
-        background: linear-gradient(135deg, #1b5e20, #4caf50);
-    }
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 5px;
-    }
-    .stChatMessage {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        border-radius: 10px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        margin-bottom: 10px;
-    }
-    .stChatMessageContent {
-        color: white !important;
-    }
-    h1, h2, h3, p {
-        color: white;
-    }
-    .stButton>button {
-        background-color: #81c784;
-        color: #1b5e20;
-        border-radius: 5px;
-        font-weight: bold;
-    }
-    .stButton>button:hover {
-        background-color: #a5d6a7;
-    }
     .logo-text {
         font-size: 24px;
         font-weight: bold;
         margin-left: 10px;
         vertical-align: middle;
-        color: white;
-    }
-    .stSpinner > div > div {
-        border-top-color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
