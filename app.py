@@ -5,7 +5,7 @@ import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for green gradient theme
+# Custom CSS for green gradient theme and Gemini-style loading animation
 st.markdown("""
 <style>
     .stApp {
@@ -27,17 +27,30 @@ st.markdown("""
         color: #1b5e20;
         text-align: center;
     }
-    .typing-animation::after {
-        content: '...';
-        animation: typing 1s steps(5, end) infinite;
+    .gemini-loader {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 40px;
     }
-    @keyframes typing {
-        0% { content: ''; }
-        20% { content: '.'; }
-        40% { content: '..'; }
-        60% { content: '...'; }
-        80% { content: '....'; }
-        100% { content: '.....'; }
+    .gemini-loader .dot {
+        width: 10px;
+        height: 10px;
+        margin: 0 5px;
+        background-color: #4CAF50;
+        border-radius: 50%;
+        opacity: 0;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    .gemini-loader .dot:nth-child(2) {
+        animation-delay: 0.5s;
+    }
+    .gemini-loader .dot:nth-child(3) {
+        animation-delay: 1s;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 0; transform: scale(0.5); }
+        50% { opacity: 1; transform: scale(1); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -54,8 +67,14 @@ def initialize_chatbot():
     return True
 
 def simulate_typing(placeholder, final_response):
-    placeholder.markdown('<span class="typing-animation">Typing</span>', unsafe_allow_html=True)
-    time.sleep(1)  # Simulating typing time
+    placeholder.markdown("""
+    <div class="gemini-loader">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    time.sleep(2)  # Simulating response time
     placeholder.markdown(final_response)
 
 def main():
