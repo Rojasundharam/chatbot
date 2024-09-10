@@ -5,7 +5,7 @@ import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Custom CSS for green gradient theme and Gemini-style loading animation
+# Custom CSS for refined green gradient theme
 st.markdown("""
 <style>
     .stApp {
@@ -13,12 +13,20 @@ st.markdown("""
     }
     .stTextInput > div > div > input {
         background-color: #e8f5e9;
+        border: 2px solid #4CAF50 !important;
+        border-radius: 20px;
+        padding-left: 15px;
+        color: #1b5e20;
+    }
+    .stTextInput > div > div > input:focus {
+        box-shadow: 0 0 0 2px #4CAF50;
     }
     .stChatMessage {
         background-color: rgba(255, 255, 255, 0.8) !important;
         border-radius: 15px;
         padding: 10px;
         margin-bottom: 10px;
+        border: 2px solid #4CAF50 !important;
     }
     .stChatMessageContent {
         background-color: transparent !important;
@@ -26,6 +34,12 @@ st.markdown("""
     h1 {
         color: #1b5e20;
         text-align: center;
+    }
+    .user-avatar {
+        background-color: #4CAF50 !important;
+    }
+    .bot-avatar {
+        background-color: #1b5e20 !important;
     }
     .gemini-loader {
         display: flex;
@@ -51,6 +65,14 @@ st.markdown("""
     @keyframes pulse {
         0%, 100% { opacity: 0; transform: scale(0.5); }
         50% { opacity: 1; transform: scale(1); }
+    }
+    .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 20px;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -93,7 +115,7 @@ def main():
     # Display chat history
     with chat_container:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
+            with st.chat_message(message["role"], avatar="user-avatar" if message["role"] == "user" else "bot-avatar"):
                 st.write(message["content"])
 
     # User input
@@ -101,10 +123,10 @@ def main():
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
         with chat_container:
-            with st.chat_message("user"):
+            with st.chat_message("user", avatar="user-avatar"):
                 st.write(user_input)
             
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant", avatar="bot-avatar"):
                 loading_placeholder = st.empty()
                 loading_placeholder.markdown(display_loading_animation(), unsafe_allow_html=True)
                 try:
