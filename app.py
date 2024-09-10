@@ -37,7 +37,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ... [rest of your code remains the same]
+def initialize_chatbot():
+    if "chatbot" not in st.session_state:
+        try:
+            st.session_state.chatbot = ChatBot(st.session_state)
+            logging.info("ChatBot initialized successfully")
+        except Exception as e:
+            logging.error(f"Error initializing ChatBot: {str(e)}")
+            st.error(f"Failed to initialize ChatBot: {str(e)}")
+            return False
+    return True
+
+def start_new_chat():
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
+    ]
 
 def main():
     # Load and display logo
