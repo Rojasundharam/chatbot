@@ -37,7 +37,7 @@ def main():
     # Logo and title
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("C:\Users\admin\Downloads\chatbot", width=100)  # Replace with your actual logo
+        st.image("  ", width=100)  # Replace with your actual logo
     with col2:
         st.markdown('<p class="logo-text">JKKN ASSIST</p>', unsafe_allow_html=True)
     
