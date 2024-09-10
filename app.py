@@ -4,6 +4,29 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Custom CSS for green gradient theme
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(to bottom right, #a8e063, #56ab2f);
+    }
+    .stTextInput > div > div > input {
+        background-color: #e8f5e9;
+    }
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        border-radius: 15px;
+        padding: 10px;
+    }
+    .stChatMessageContent {
+        background-color: transparent !important;
+    }
+    h1 {
+        color: #1b5e20;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 def initialize_chatbot():
     if "chatbot" not in st.session_state:
         try:
