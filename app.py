@@ -1,6 +1,7 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -24,6 +25,18 @@ st.markdown("""
     h1 {
         color: #1b5e20;
     }
+    .typing-animation::after {
+        content: '...';
+        animation: typing 1s steps(5, end) infinite;
+    }
+    @keyframes typing {
+        0% { content: ''; }
+        20% { content: '.'; }
+        40% { content: '..'; }
+        60% { content: '...'; }
+        80% { content: '....'; }
+        100% { content: '.....'; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -37,6 +50,11 @@ def initialize_chatbot():
             st.error(f"Failed to initialize ChatBot: {str(e)}")
             return False
     return True
+
+def simulate_typing(placeholder, final_response):
+    placeholder.markdown('<span class="typing-animation">Typing</span>', unsafe_allow_html=True)
+    time.sleep(2)  # Simulating typing time
+    placeholder.markdown(final_response)
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -62,15 +80,15 @@ def main():
             st.write(prompt)
         
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = st.session_state.chatbot.process_user_input(prompt)
-                    st.write(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Error processing request: {str(e)}"
-                    st.error(error_msg)
-                    logging.error(error_msg)
+            response_placeholder = st.empty()
+            try:
+                response = st.session_state.chatbot.process_user_input(prompt)
+                simulate_typing(response_placeholder, response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            except Exception as e:
+                error_msg = f"Error processing request: {str(e)}"
+                st.error(error_msg)
+                logging.error(error_msg)
 
 if __name__ == "__main__":
     main()
