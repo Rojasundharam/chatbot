@@ -49,12 +49,5 @@ def main():
                     st.error(error_msg)
                     logging.error(error_msg)
 
-    # Simple controls
-    if st.button("Clear Chat"):
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hello! How can I help you today?"}
-        ]
-        st.experimental_rerun()
-
 if __name__ == "__main__":
     main()
