@@ -1,8 +1,7 @@
 import io
-import json
 import os
-import re
 from typing import IO, Any
+
 import chardet
 import docx
 import openpyxl
@@ -82,7 +81,7 @@ def extract_file_text(file_name: str, file: IO[Any]) -> str:
     extension = get_file_ext(file_name)
     if not check_file_ext_is_valid(extension):
         raise ValueError(f"Unsupported file extension: {extension}")
-    
+
     if extension in ['.txt', '.md']:
         return read_text_file(file)
     elif extension == '.pdf':

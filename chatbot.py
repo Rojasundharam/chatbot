@@ -1,7 +1,7 @@
 import os
 import pickle
-import re
 import io
+import re
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from anthropic import Anthropic
@@ -54,28 +54,31 @@ class ChatBot:
         self.update_cache()
 
     def update_cache(self):
-        self.documents = self.load_documents()
-        if not self.documents:
-            logging.error("No documents were loaded. Cannot update cache.")
-            return
+        try:
+            self.documents = self.load_documents()
+            if not self.documents:
+                raise ValueError("No documents were loaded.")
+            
+            self.embeddings = self.embedding_util.create_embeddings(self.documents)
+            self.index = self.embedding_util.create_faiss_index(self.embeddings)
+            self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
 
-        self.embeddings = self.embedding_util.create_embeddings(self.documents)
-        self.index = self.embedding_util.create_faiss_index(self.embeddings)
-        self.tfidf_matrix = self.embedding_util.create_tfidf_matrix(self.documents)
+            cache_data = {
+                'timestamp': datetime.now(),
+                'documents': self.documents,
+                'embeddings': self.embeddings,
+                'index': self.index,
+                'tfidf_matrix': self.tfidf_matrix,
+                'tfidf_vectorizer': self.embedding_util.tfidf_vectorizer
+            }
 
-        cache_data = {
-            'timestamp': datetime.now(),
-            'documents': self.documents,
-            'embeddings': self.embeddings,
-            'index': self.index,
-            'tfidf_matrix': self.tfidf_matrix,
-            'tfidf_vectorizer': self.embedding_util.tfidf_vectorizer
-        }
-
-        with open(CACHE_FILE, 'wb') as f:
-            pickle.dump(cache_data, f)
-        
-        logging.info("Updated and saved cache")
+            with open(CACHE_FILE, 'wb') as f:
+                pickle.dump(cache_data, f)
+            
+            logging.info("Updated and saved cache")
+        except Exception as e:
+            logging.error(f"Failed to update cache: {str(e)}")
+            raise
 
     def load_documents(self):
         files = get_documents(self.drive_service, self.folder_id)
@@ -85,17 +88,20 @@ class ChatBot:
             file_extension = get_file_ext(file['name'])
             
             try:
-                # Create a BytesIO object from the content
-                file_like_object = io.BytesIO(content)
+                # Convert content to bytes if it's a string
+                if isinstance(content, str):
+                    content = content.encode('utf-8')
                 
-                # Pass the file name and the file-like object to extract_file_text
-                extracted_text = extract_file_text(file['name'], file_like_object)
-                
+                extracted_text = extract_file_text(file['name'], io.BytesIO(content))
                 processed_content = self.preprocess_text(extracted_text)
                 documents.append(processed_content)
                 logging.info(f"Loaded and preprocessed document: {file['name']}")
             except Exception as e:
                 logging.error(f"Failed to process file {file['name']}: {str(e)}")
+        
+        if not documents:
+            logging.error("No documents were successfully loaded.")
+            raise ValueError("No documents could be processed.")
         
         return documents
 
