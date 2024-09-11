@@ -2,17 +2,27 @@ import streamlit as st
 from chatbot import ChatBot
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Minimal custom CSS for layout
+# Custom CSS for green gradient theme
 st.markdown("""
 <style>
-    .logo-text {
-        font-size: 24px;
-        font-weight: bold;
-        margin-left: 10px;
-        vertical-align: middle;
+    .stApp {
+        background: linear-gradient(to bottom right, #a8e063, #56ab2f);
+    }
+    .stTextInput > div > div > input {
+        background-color: #e8f5e9;
+    }
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        border-radius: 15px;
+        padding: 10px;
+    }
+    .stChatMessageContent {
+        background-color: transparent !important;
+    }
+    h1 {
+        color: #1b5e20;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -28,35 +38,17 @@ def initialize_chatbot():
             return False
     return True
 
-def start_new_chat():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Starting a new chat. How can I help you today?"}
-    ]
-
 def main():
-    # Logo and title
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        st.image("jkkn_logo.png", width=50)  # Using your JKKN logo
-    with col2:
-        st.markdown('<p class="logo-text">JKKN ASSIST</p>', unsafe_allow_html=True)
-    
-    st.write("Welcome to your personal assistant for JKKN Educational Institutions.")
+    st.title("JKKN Assist 🤖")
+    st.write("Ask me anything about JKKN Educational Institutions.")
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Hello! How can I assist you with information about JKKN Educational Institutions today?"}
+            {"role": "assistant", "content": "Hello! How can I help you today?"}
         ]
 
     if not initialize_chatbot():
         st.stop()
-
-    # Sidebar with New Chat button
-    with st.sidebar:
-        st.title("JKKN")
-        if st.button("New Chat"):
-            start_new_chat()
-            st.rerun()
 
     # Display chat history
     for message in st.session_state.messages:
@@ -64,13 +56,13 @@ def main():
             st.write(message["content"])
 
     # User input
-    if prompt := st.chat_input("Type your question here..."):
+    if prompt := st.chat_input("Type your question here"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
         
         with st.chat_message("assistant"):
-            with st.spinner("Processing your request..."):
+            with st.spinner("Thinking..."):
                 try:
                     response = st.session_state.chatbot.process_user_input(prompt)
                     st.write(response)
