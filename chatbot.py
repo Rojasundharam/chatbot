@@ -28,7 +28,7 @@ class ChatBot:
     def __init__(self, session_state):
         self.session_state = session_state
         self.drive_service = self._get_drive_service()
-        self.folder_id = "YOUR_FOLDER_ID"  # Replace with your actual folder ID
+        self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Replace with your actual folder ID
         self.documents: Dict[str, EnhancedDocument] = {}
         self.embedding_util = EmbeddingUtil()
         self.anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -36,7 +36,7 @@ class ChatBot:
 
     def _get_drive_service(self):
         creds = service_account.Credentials.from_service_account_file(
-            'path/to/your/credentials.json',  # Replace with your actual path
+            'GOOGLE_APPLICATION_CREDENTIALS',  # Replace with your actual path
             scopes=['https://www.googleapis.com/auth/drive.readonly']
         )
         return build('drive', 'v3', credentials=creds)
