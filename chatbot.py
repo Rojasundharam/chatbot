@@ -1,4 +1,4 @@
-Certainly! I'll provide you with the full, corrected code for your chatbot. This version includes the fix for the syntax error in the `process_user_input` method and ensures that the Anthropic API requirements are met:
+I apologize for the confusion. It seems that the code I provided earlier was not properly formatted. Let me give you the correct, full code for your `chatbot.py` file:
 
 ```python
 import os
