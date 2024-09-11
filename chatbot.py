@@ -1,3 +1,6 @@
+Certainly! I'll provide you with the full, corrected code for your chatbot. This version includes the fix for the syntax error in the `process_user_input` method and ensures that the Anthropic API requirements are met:
+
+```python
 import os
 import pickle
 import io
