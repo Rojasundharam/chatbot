@@ -135,7 +135,7 @@ class ChatBot:
             if not context.strip():
                 return "I'm sorry, but I couldn't find any specific information related to your query in the documents."
 
-            prompt = f"""Based on the following information from the documents, answer the user's question:
+            prompt = f"""Human: Based on the following information from the documents, answer the user's question:
 
 Context:
 {context}
@@ -147,38 +147,3 @@ Instructions:
 2. If the context doesn't contain specific information that answers the user's question, say so.
 3. Do not include any information or assumptions that are not explicitly stated in the provided context.
 4. Begin your response with "Based on the available information:" to emphasize that the answer comes from the documents.
-
-Answer:
-"""
-
-            response = self.anthropic.completions.create(
-                model="claude-2.1",
-                prompt=prompt,
-                max_tokens_to_sample=300,
-            )
-            
-            assistant_response = response.completion
-            logger.info(f"Generated response: {assistant_response[:100]}...")
-            return assistant_response
-        except Exception as e:
-            logger.error(f"Error processing user input: {str(e)}")
-            return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question?"
-
-def initialize_chatbot():
-    try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            raise ValueError("DATABASE_URL environment variable is not set")
-        
-        engine = create_engine(database_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        db_session = SessionLocal()
-        
-        return ChatBot(db_session)
-    except Exception as e:
-        logger.error(f"Error initializing ChatBot: {str(e)}")
-        raise
-
-if __name__ == "__main__":
-    chatbot = initialize_chatbot()
-    chatbot.chat()
