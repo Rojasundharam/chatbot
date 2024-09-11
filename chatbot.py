@@ -9,7 +9,7 @@ from embedding_utils import EmbeddingUtil
 import logging
 from anthropic import Anthropic
 from dotenv import load_dotenv
-import chardet
+import docx
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -60,7 +60,7 @@ class ChatBot:
         for file in files:
             try:
                 if file['id'] not in self.documents or self._needs_update(file):
-                    content = self._get_file_content(file['id'])
+                    content = self._get_file_content(file['id'], file['name'])
                     doc = EnhancedDocument(file['id'], content, file)
                     doc.chunk_content()
                     doc.create_embeddings(self.embedding_util)
@@ -76,7 +76,7 @@ class ChatBot:
         ).execute()
         return results.get('files', [])
 
-    def _get_file_content(self, file_id: str) -> str:
+    def _get_file_content(self, file_id: str, file_name: str) -> str:
         request = self.drive_service.files().get_media(fileId=file_id)
         file = io.BytesIO()
         downloader = MediaIoBaseDownload(file, request)
@@ -84,17 +84,12 @@ class ChatBot:
         while done is False:
             status, done = downloader.next_chunk()
         file.seek(0)
-        raw_data = file.read()
         
-        # Detect the encoding
-        result = chardet.detect(raw_data)
-        encoding = result['encoding']
-        
-        try:
-            return raw_data.decode(encoding)
-        except UnicodeDecodeError:
-            # If decoding fails, try with 'utf-8' and ignore errors
-            return raw_data.decode('utf-8', errors='ignore')
+        if file_name.lower().endswith('.docx'):
+            doc = docx.Document(file)
+            return '\n'.join([para.text for para in doc.paragraphs])
+        else:
+            return file.read().decode('utf-8', errors='ignore')
 
     def _needs_update(self, file: Dict[str, Any]) -> bool:
         if file['id'] not in self.documents:
