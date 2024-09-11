@@ -9,8 +9,11 @@ from embedding_utils import EmbeddingUtil
 import logging
 from anthropic import Anthropic
 from dotenv import load_dotenv
+import chardet
 
 load_dotenv()  # Load environment variables from .env file
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class EnhancedDocument:
     def __init__(self, doc_id: str, content: str, metadata: Dict[str, Any]):
@@ -55,12 +58,16 @@ class ChatBot:
     def load_or_update_documents(self):
         files = self._list_files_in_folder()
         for file in files:
-            if file['id'] not in self.documents or self._needs_update(file):
-                content = self._get_file_content(file['id'])
-                doc = EnhancedDocument(file['id'], content, file)
-                doc.chunk_content()
-                doc.create_embeddings(self.embedding_util)
-                self.documents[file['id']] = doc
+            try:
+                if file['id'] not in self.documents or self._needs_update(file):
+                    content = self._get_file_content(file['id'])
+                    doc = EnhancedDocument(file['id'], content, file)
+                    doc.chunk_content()
+                    doc.create_embeddings(self.embedding_util)
+                    self.documents[file['id']] = doc
+                    logging.info(f"Successfully processed file: {file['name']}")
+            except Exception as e:
+                logging.error(f"Error processing file {file['name']}: {str(e)}")
 
     def _list_files_in_folder(self):
         results = self.drive_service.files().list(
@@ -77,7 +84,17 @@ class ChatBot:
         while done is False:
             status, done = downloader.next_chunk()
         file.seek(0)
-        return file.read().decode('utf-8')
+        raw_data = file.read()
+        
+        # Detect the encoding
+        result = chardet.detect(raw_data)
+        encoding = result['encoding']
+        
+        try:
+            return raw_data.decode(encoding)
+        except UnicodeDecodeError:
+            # If decoding fails, try with 'utf-8' and ignore errors
+            return raw_data.decode('utf-8', errors='ignore')
 
     def _needs_update(self, file: Dict[str, Any]) -> bool:
         if file['id'] not in self.documents:
