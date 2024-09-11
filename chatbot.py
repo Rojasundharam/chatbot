@@ -37,7 +37,7 @@ class ChatBot:
     def __init__(self, db_session: Session):
         self.db_session = db_session
         self.drive_service = get_drive_service()
-        self.folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        self.folder_id = os.getenv("1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ")
         if not self.folder_id:
             raise ValueError("GOOGLE_DRIVE_FOLDER_ID environment variable is not set")
         self.documents: Dict[str, EnhancedDocument] = {}
