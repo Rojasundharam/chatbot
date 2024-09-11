@@ -8,6 +8,9 @@ import io
 from embedding_utils import EmbeddingUtil
 import logging
 from anthropic import Anthropic
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 class EnhancedDocument:
     def __init__(self, doc_id: str, content: str, metadata: Dict[str, Any]):
@@ -28,15 +31,23 @@ class ChatBot:
     def __init__(self, session_state):
         self.session_state = session_state
         self.drive_service = self._get_drive_service()
-        self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Replace with your actual folder ID
+        self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Your Google Drive folder ID
         self.documents: Dict[str, EnhancedDocument] = {}
         self.embedding_util = EmbeddingUtil()
-        self.anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        self.anthropic = Anthropic(api_key=anthropic_api_key)
+        
         self.load_or_update_documents()
 
     def _get_drive_service(self):
+        creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if not creds_path:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set")
         creds = service_account.Credentials.from_service_account_file(
-            'GOOGLE_APPLICATION_CREDENTIALS',  # Replace with your actual path
+            creds_path,
             scopes=['https://www.googleapis.com/auth/drive.readonly']
         )
         return build('drive', 'v3', credentials=creds)
