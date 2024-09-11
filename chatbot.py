@@ -45,7 +45,7 @@ class AdvancedRetrieval:
         self.tfidf = TfidfVectorizer()
         self.tfidf_matrix = self.tfidf.fit_transform(self.chunks)
 
-    def hybrid_search(self, query: str, k: int = 10) -> List[str]:
+    def hybrid_search(self, query: str, k: int = 20) -> List[str]:
         # Dense retrieval
         query_embedding = self.dense_model.encode([query])[0]
         dense_scores = cosine_similarity([query_embedding], self.dense_embeddings)[0]
@@ -60,7 +60,7 @@ class AdvancedRetrieval:
         top_k_indices = combined_scores.argsort()[-k:][::-1]
         return [self.chunks[i] for i in top_k_indices]
 
-    def rerank(self, query: str, candidates: List[str], n: int = 5) -> List[str]:
+    def rerank(self, query: str, candidates: List[str], n: int = 10) -> List[str]:
         query_vector = self.tfidf.transform([query])
         candidate_indices = [self.chunks.index(c) for c in candidates]
         candidate_vectors = self.tfidf_matrix[candidate_indices]
@@ -70,7 +70,7 @@ class AdvancedRetrieval:
         
         return [candidates[i] for i in reranked_indices]
 
-    def get_relevant_context(self, query: str, max_chunks: int = 5) -> str:
+    def get_relevant_context(self, query: str, max_chunks: int = 10) -> str:
         expanded_query = expand_query(query)
         candidates = self.hybrid_search(expanded_query, k=max_chunks*2)
         reranked_chunks = self.rerank(expanded_query, candidates, n=max_chunks)
@@ -151,13 +151,13 @@ class ChatBot:
     def process_user_input(self, user_input: str) -> str:
         try:
             logging.info(f"Processing user input: {user_input}")
-            context = self.retrieval.get_relevant_context(user_input)
+            context = self.retrieval.get_relevant_context(user_input, max_chunks=10)
             
             if not context.strip():
                 logging.warning("No relevant context found")
                 return "I'm sorry, but I couldn't find any specific information related to your query in the JKKN documents."
 
-            logging.info(f"Context found (first 500 characters): {context[:500]}")
+            logging.info(f"Context found: {context}")  # Log the full context
 
             rag_message = f"""Based ONLY on the following information from JKKN institutional documents, answer the user's question:
 
@@ -171,13 +171,14 @@ Instructions:
 2. If the context doesn't contain specific information that answers the user's question, say so.
 3. Do not include any information or assumptions that are not explicitly stated in the provided context.
 4. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
+5. Provide ALL relevant information from the context, even if it seems repetitive or extensive.
 
 Answer:
 """
 
             response_message = self.generate_message([{"role": "user", "content": rag_message}])
             assistant_response = response_message.content[0].text
-            logging.info(f"Generated response: {assistant_response[:100]}...")
+            logging.info(f"Generated response: {assistant_response}")  # Log the full response
             return assistant_response
         except Exception as e:
             logging.error(f"Error processing user input: {str(e)}")
@@ -206,3 +207,8 @@ def expand_query(query: str) -> str:
     for key, value in expansions.items():
         expanded = expanded.replace(key, value)
     return expanded
+
+# Main execution (if needed)
+if __name__ == "__main__":
+    # Add any initialization or main execution code here
+    pass
