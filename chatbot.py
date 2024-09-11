@@ -13,7 +13,13 @@ from sqlalchemy.orm import sessionmaker
 from google_drive_utils import get_drive_service, get_documents, get_document_content
 from embedding_utils import EmbeddingUtil
 
+# Load environment variables
 load_dotenv()
+
+# Check if environment variables are loaded
+print("GOOGLE_DRIVE_FOLDER_ID:", os.getenv("GOOGLE_DRIVE_FOLDER_ID"))
+print("ANTHROPIC_API_KEY:", os.getenv("ANTHROPIC_API_KEY"))
+print("DATABASE_URL:", os.getenv("DATABASE_URL"))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -37,7 +43,7 @@ class ChatBot:
     def __init__(self, db_session: Session):
         self.db_session = db_session
         self.drive_service = get_drive_service()
-        self.folder_id = os.getenv("1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ")
+        self.folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
         if not self.folder_id:
             raise ValueError("GOOGLE_DRIVE_FOLDER_ID environment variable is not set")
         self.documents: Dict[str, EnhancedDocument] = {}
@@ -67,14 +73,21 @@ class ChatBot:
         return datetime.now() - last_modified > self.cache_refresh_interval
 
     def load_cache(self):
-        with open(self.cache_file, 'rb') as f:
-            self.documents = pickle.load(f)
-        logger.info(f"Loaded {len(self.documents)} documents from cache.")
+        try:
+            with open(self.cache_file, 'rb') as f:
+                self.documents = pickle.load(f)
+            logger.info(f"Loaded {len(self.documents)} documents from cache.")
+        except Exception as e:
+            logger.error(f"Error loading cache: {str(e)}")
+            self.documents = {}
 
     def save_cache(self):
-        with open(self.cache_file, 'wb') as f:
-            pickle.dump(self.documents, f)
-        logger.info(f"Saved {len(self.documents)} documents to cache.")
+        try:
+            with open(self.cache_file, 'wb') as f:
+                pickle.dump(self.documents, f)
+            logger.info(f"Saved {len(self.documents)} documents to cache.")
+        except Exception as e:
+            logger.error(f"Error saving cache: {str(e)}")
 
     def fetch_and_process_documents(self):
         self.documents.clear()  # Clear existing documents before fetching new ones
@@ -151,23 +164,21 @@ Answer:
             logger.error(f"Error processing user input: {str(e)}")
             return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question?"
 
-    def chat(self):
-        print("Welcome to the Document ChatBot! Ask me anything about the documents in the connected Google Drive folder.")
-        print("Type 'exit' to end the conversation.")
+def initialize_chatbot():
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            raise ValueError("DATABASE_URL environment variable is not set")
         
-        while True:
-            user_input = input("You: ").strip()
-            if user_input.lower() == 'exit':
-                print("Thank you for using the Document ChatBot. Goodbye!")
-                break
-            
-            response = self.process_user_input(user_input)
-            print("ChatBot:", response)
+        engine = create_engine(database_url)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db_session = SessionLocal()
+        
+        return ChatBot(db_session)
+    except Exception as e:
+        logger.error(f"Error initializing ChatBot: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    engine = create_engine(os.getenv("DATABASE_URL"))
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db_session = SessionLocal()
-    
-    chatbot = ChatBot(db_session)
+    chatbot = initialize_chatbot()
     chatbot.chat()
