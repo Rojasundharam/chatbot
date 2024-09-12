@@ -43,18 +43,18 @@ class ChatBot:
         
         self.cache = {}
         
+        # Initialize documents and index
+        self.update_documents()
+        
         # Start the background update thread
         self.update_thread = threading.Thread(target=self.background_update, daemon=True)
         self.update_thread.start()
 
     def background_update(self):
         while True:
-            current_time = time.time()
-            if current_time - self.last_update_time >= self.update_interval:
-                with self.update_lock:
-                    self.update_documents()
-                self.last_update_time = current_time
-            time.sleep(60)  # Check every minute
+            time.sleep(self.update_interval)
+            with self.update_lock:
+                self.update_documents()
 
     def update_documents(self):
         try:
@@ -73,6 +73,8 @@ class ChatBot:
 
     def get_similar_documents(self, query, k=TOP_K_DOCUMENTS):
         similar_doc_ids, scores = self.embedding_util.search_similar(query, k=k)
+        if not similar_doc_ids:
+            return [], []
         return [doc for doc in self.documents if doc['id'] in similar_doc_ids], scores
 
     def process_user_input(self, user_input: str) -> str:
@@ -83,46 +85,48 @@ class ChatBot:
         if user_input in self.cache:
             return self.cache[user_input]
 
-        with self.update_lock:
-            try:
-                similar_docs, scores = self.get_similar_documents(user_input)
-                context = "\n\n".join([doc['content'] for doc in similar_docs])
+        try:
+            similar_docs, scores = self.get_similar_documents(user_input)
+            if not similar_docs:
+                return "I'm sorry, but I don't have any information to answer your question at the moment. Please try again later or ask a different question."
 
-                # Early stopping
-                if scores[0] > 0.9:  # Adjust this threshold as needed
-                    context = similar_docs[0]['content']
-                
-                extracted_answer = self.extract_answer(user_input, context)
-                
-                rag_message = f"""Based on the following extracted answer and context from JKKN institutional documents, provide a comprehensive response to the user's question:
+            context = "\n\n".join([doc['content'] for doc in similar_docs])
 
-                Extracted Answer: {extracted_answer}
+            # Early stopping
+            if scores and scores[0] > 0.9:  # Adjust this threshold as needed
+                context = similar_docs[0]['content']
+            
+            extracted_answer = self.extract_answer(user_input, context)
+            
+            rag_message = f"""Based on the following extracted answer and context from JKKN institutional documents, provide a comprehensive response to the user's question:
 
-                Context:
-                {context}
+            Extracted Answer: {extracted_answer}
 
-                User Question: {user_input}
+            Context:
+            {context}
 
-                Instructions:
-                1. Use the extracted answer and context to formulate a detailed response.
-                2. If the extracted answer doesn't seem relevant, rely more on the context.
-                3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
-                4. Provide ALL relevant information, even if it seems repetitive or extensive.
-                5. If the user's question is not specific or cannot be answered with the given context, politely ask for clarification.
+            User Question: {user_input}
 
-                Answer:
-                """
+            Instructions:
+            1. Use the extracted answer and context to formulate a detailed response.
+            2. If the extracted answer doesn't seem relevant, rely more on the context.
+            3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
+            4. Provide ALL relevant information, even if it seems repetitive or extensive.
+            5. If the user's question is not specific or cannot be answered with the given context, politely ask for clarification.
 
-                response_message = self.generate_message([{"role": "user", "content": rag_message}])
-                assistant_response = response_message.content[0].text
+            Answer:
+            """
 
-                # Cache the response
-                self.cache[user_input] = assistant_response
+            response_message = self.generate_message([{"role": "user", "content": rag_message}])
+            assistant_response = response_message.content[0].text
 
-                return assistant_response
-            except Exception as e:
-                logging.error(f"Error processing user input: {str(e)}")
-                return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
+            # Cache the response
+            self.cache[user_input] = assistant_response
+
+            return assistant_response
+        except Exception as e:
+            logging.error(f"Error processing user input: {str(e)}")
+            return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
 
     def is_greeting(self, text):
         greetings = ['hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
