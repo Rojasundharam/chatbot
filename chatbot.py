@@ -10,22 +10,26 @@ from transformers import BertTokenizer, BertModel, GPT2LMHeadModel, GPT2Tokenize
 from cachetools import TTLCache, cached
 import functools
 import httpx
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def download_nltk_data():
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt', quiet=True)
+    resources = [
+        ('punkt', 'tokenizers/punkt'),
+        ('averaged_perceptron_tagger', 'taggers/averaged_perceptron_tagger'),
+        ('wordnet', 'corpora/wordnet')
+    ]
     
-    try:
-        nltk.data.find('taggers/averaged_perceptron_tagger')
-    except LookupError:
-        nltk.download('averaged_perceptron_tagger', quiet=True)
-    
-    try:
-        nltk.data.find('corpora/wordnet')
-    except LookupError:
-        nltk.download('wordnet', quiet=True)
+    for resource, path in resources:
+        try:
+            nltk.data.find(path)
+            logging.info(f"NLTK resource '{resource}' is already downloaded.")
+        except LookupError:
+            logging.info(f"Downloading NLTK resource: {resource}")
+            nltk.download(resource, quiet=True)
+            logging.info(f"Successfully downloaded NLTK resource: {resource}")
 
 # Download required NLTK data
 download_nltk_data()
@@ -63,27 +67,31 @@ class EnhancedQueryRewriter:
         return outputs.last_hidden_state[:, 0, :].numpy()[0]
 
     def rewrite_query(self, query):
-        original_embedding = self.get_bert_embedding(query)
-        
-        tokens = nltk.word_tokenize(query.lower())
-        pos_tags = nltk.pos_tag(tokens)
-        
-        expanded_tokens = []
-        for token, pos in pos_tags:
-            expanded_tokens.append(token)
-            if pos.startswith('N') or pos.startswith('V'):
-                synsets = wordnet.synsets(token)
-                for synset in synsets[:2]:
-                    for lemma in synset.lemmas():
-                        if lemma.name() != token:
-                            expanded_tokens.append(lemma.name())
-        
-        expanded_query = ' '.join(expanded_tokens)
-        expanded_embedding = self.get_bert_embedding(expanded_query)
-        
-        combined_embedding = (original_embedding + expanded_embedding) / 2
-        
-        return expanded_query, combined_embedding
+        try:
+            original_embedding = self.get_bert_embedding(query)
+            
+            tokens = nltk.word_tokenize(query.lower())
+            pos_tags = nltk.pos_tag(tokens)
+            
+            expanded_tokens = []
+            for token, pos in pos_tags:
+                expanded_tokens.append(token)
+                if pos.startswith('N') or pos.startswith('V'):
+                    synsets = wordnet.synsets(token)
+                    for synset in synsets[:2]:
+                        for lemma in synset.lemmas():
+                            if lemma.name() != token:
+                                expanded_tokens.append(lemma.name())
+            
+            expanded_query = ' '.join(expanded_tokens)
+            expanded_embedding = self.get_bert_embedding(expanded_query)
+            
+            combined_embedding = (original_embedding + expanded_embedding) / 2
+            
+            return expanded_query, combined_embedding
+        except Exception as e:
+            logging.error(f"Error in query rewriting: {str(e)}")
+            return query, self.get_bert_embedding(query)  # Return original query and embedding on error
 
 class ImprovedResponseGenerator:
     def __init__(self):
@@ -144,21 +152,26 @@ class ChatBot:
         return {"info": "JKKN is currently accepting applications for the upcoming academic year. Visit our website for more details."}
 
     async def process_user_input_async(self, user_input):
-        rewritten_query, query_embedding = self.query_rewrite(user_input)
-        similar_docs, scores = self.get_similar_documents(rewritten_query)
-        
-        external_data_task = asyncio.create_task(self.fetch_external_data("https://api.example.com/data"))
-        
-        context = "\n".join([doc['content'] for doc in similar_docs[:2]])
-        response = self.response_generator.generate_response(rewritten_query, context)
-        
         try:
-            external_data = await external_data_task
-            enhanced_response = f"{response}\n\nAdditional info: {external_data['info']}"
-        except Exception:
-            enhanced_response = response  # Fallback to original response if external data fetch fails
-        
-        return enhanced_response
+            rewritten_query, query_embedding = self.query_rewrite(user_input)
+            similar_docs, scores = self.get_similar_documents(rewritten_query)
+            
+            external_data_task = asyncio.create_task(self.fetch_external_data("https://api.example.com/data"))
+            
+            context = "\n".join([doc['content'] for doc in similar_docs[:2]])
+            response = self.response_generator.generate_response(rewritten_query, context)
+            
+            try:
+                external_data = await external_data_task
+                enhanced_response = f"{response}\n\nAdditional info: {external_data['info']}"
+            except Exception as e:
+                logging.error(f"Error fetching external data: {str(e)}")
+                enhanced_response = response  # Fallback to original response if external data fetch fails
+            
+            return enhanced_response
+        except Exception as e:
+            logging.error(f"Error processing user input: {str(e)}")
+            return "I'm sorry, but I encountered an error while processing your request. Please try again later."
 
     def get_indexed_document_names(self):
         return [doc['name'] for doc in self.documents]

@@ -2,6 +2,10 @@ import streamlit as st
 import asyncio
 import time
 from chatbot import ChatBot, download_nltk_data
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 STREAMLIT_THEME_COLOR = "#56ab2f"  # You can adjust this color
@@ -33,25 +37,28 @@ st.markdown(f"""
 
 @st.cache_resource
 def get_chatbot():
-    download_nltk_data()  # Ensure NLTK data is downloaded
-    return ChatBot(st.session_state)
+    try:
+        download_nltk_data()  # Ensure NLTK data is downloaded
+        return ChatBot(st.session_state)
+    except Exception as e:
+        logging.error(f"Error initializing ChatBot: {str(e)}")
+        st.error(f"Failed to initialize ChatBot: {str(e)}")
+        return None
 
 def initialize_chatbot():
     if "chatbot" not in st.session_state:
-        try:
-            st.session_state.chatbot = get_chatbot()
-            st.success("ChatBot initialized successfully")
-        except Exception as e:
-            st.error(f"Failed to initialize ChatBot: {str(e)}")
-            st.error("Please check your environment variables and connections.")
-            return False
+        st.session_state.chatbot = get_chatbot()
+    
+    if st.session_state.chatbot is None:
+        st.error("ChatBot initialization failed. Please check your environment and try again.")
+        return False
     return True
 
 async def process_user_input_wrapper(chatbot, prompt):
     try:
         return await chatbot.process_user_input_async(prompt)
     except Exception as e:
-        st.error(f"An error occurred while processing your input: {str(e)}")
+        logging.error(f"Error processing user input: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request. Please try again later."
 
 def main():
@@ -98,8 +105,8 @@ def main():
                 
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
             except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-                st.error("Please try again or contact support if the problem persists.")
+                logging.error(f"An error occurred: {str(e)}")
+                st.error("An error occurred while processing your request. Please try again or contact support if the problem persists.")
 
     # Update sidebar information
     last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
