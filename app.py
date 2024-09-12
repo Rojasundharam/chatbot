@@ -8,6 +8,13 @@ import pstats
 import io
 import torch
 from transformers import BertTokenizer, BertModel
+import nltk
+from nltk.corpus import wordnet
+
+# Download required NLTK data
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -61,6 +68,35 @@ def initialize_chatbot():
             return False
     return True
 
+def query_rewrite(query):
+    # Tokenize the query
+    tokens = nltk.word_tokenize(query.lower())
+    
+    # Perform part-of-speech tagging
+    pos_tags = nltk.pos_tag(tokens)
+    
+    # Expand query with synonyms for nouns and verbs
+    expanded_tokens = []
+    for token, pos in pos_tags:
+        expanded_tokens.append(token)
+        if pos.startswith('N') or pos.startswith('V'):  # Nouns or Verbs
+            synsets = wordnet.synsets(token)
+            for synset in synsets[:2]:  # Take up to 2 synonyms
+                for lemma in synset.lemmas():
+                    if lemma.name() != token:
+                        expanded_tokens.append(lemma.name())
+    
+    # Join the expanded tokens back into a query
+    expanded_query = ' '.join(expanded_tokens)
+    
+    # Add JKKN-specific terms if they're not already in the query
+    jkkn_terms = ['jkkn', 'education', 'institution', 'college', 'university']
+    for term in jkkn_terms:
+        if term not in expanded_query:
+            expanded_query += f' {term}'
+    
+    return expanded_query
+
 def process_user_input(prompt, model, device, tokenizer):
     pr = cProfile.Profile()
     pr.enable()
@@ -73,13 +109,10 @@ def process_user_input(prompt, model, device, tokenizer):
     
     chatbot = st.session_state.chatbot
     
-    # Check if the query_rewrite method accepts embeddings
-    if 'embeddings' in chatbot.query_rewrite.__code__.co_varnames:
-        rewritten_query = chatbot.query_rewrite(prompt, embeddings[0])
-    else:
-        # If not, just use the original query_rewrite method
-        rewritten_query = chatbot.query_rewrite(prompt)
+    # Rewrite the query
+    rewritten_query = query_rewrite(prompt)
     
+    # Process the rewritten query
     response = chatbot.process_user_input(rewritten_query)
     similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
 
@@ -91,6 +124,12 @@ def process_user_input(prompt, model, device, tokenizer):
     logging.info(f"Performance profile:\n{s.getvalue()}")
 
     return response, similar_docs, scores
+
+def handle_greeting(name):
+    return f"Hello {name}! Welcome to JKKN Assist. How can I help you with information about JKKN Educational Institutions today?"
+
+def handle_general_query():
+    return ("JKKN is a group of educational institutions. Would you like to know about its history, programs, or any specific aspect of JKKN? Please feel free to ask more specific questions.")
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -125,7 +164,16 @@ def main():
             message_placeholder = st.empty()
             full_response = ""
             
-            response, similar_docs, scores = process_user_input(prompt, model, device, tokenizer)
+            # Check for greetings or general queries
+            if prompt.lower().startswith(("hello", "hi", "hey")):
+                response = "Hello! How can I assist you with information about JKKN Educational Institutions today?"
+            elif "i am" in prompt.lower():
+                name = prompt.lower().split("i am")[-1].strip()
+                response = handle_greeting(name)
+            elif prompt.lower() in ["do you know jkkn", "what is jkkn", "tell me about jkkn"]:
+                response = handle_general_query()
+            else:
+                response, similar_docs, scores = process_user_input(prompt, model, device, tokenizer)
             
             for chunk in response.split():  # Simulate streaming response
                 full_response += chunk + " "
@@ -137,7 +185,7 @@ def main():
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             # Display top document matches
-            if similar_docs:
+            if 'similar_docs' in locals() and similar_docs:
                 with st.expander("Top Matching Documents"):
                     for doc, score in zip(similar_docs, scores):
                         st.markdown(f"- [{doc['name']}](https://drive.google.com/file/d/{doc['id']}/view) (Relevance: {score:.2f})")
