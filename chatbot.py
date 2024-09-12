@@ -1,163 +1,152 @@
+import asyncio
 import time
-import threading
-import logging
-import re
-from google_drive_utils import get_drive_service, index_documents
-from embedding_utils import EmbeddingUtil
-from anthropic import Anthropic
-from transformers import pipeline
-from config import (
-    GOOGLE_DRIVE_FOLDER_ID,
-    GOOGLE_APPLICATION_CREDENTIALS,
-    ANTHROPIC_API_KEY,
-    ANTHROPIC_MODEL,
-    UPDATE_INTERVAL,
-    EMBEDDING_MODEL,
-    QA_MODEL,
-    MAX_TOKENS,
-    TOP_K_DOCUMENTS
-)
+import numpy as np
+import faiss
+import torch
+import nltk
+from nltk.corpus import wordnet
+from sentence_transformers import SentenceTransformer
+from transformers import BertTokenizer, BertModel, GPT2LMHeadModel, GPT2Tokenizer
+from cachetools import TTLCache, cached
+import functools
+import httpx
+
+# Download required NLTK data
+nltk.download('punkt', quiet=True)
+nltk.download('averaged_perceptron_tagger', quiet=True)
+nltk.download('wordnet', quiet=True)
+
+class OptimizedDocumentRetrieval:
+    def __init__(self, documents):
+        self.documents = documents
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.index = None
+        self.build_index()
+
+    def build_index(self):
+        embeddings = self.model.encode([doc['content'] for doc in self.documents])
+        dimension = embeddings.shape[1]
+        self.index = faiss.IndexFlatL2(dimension)
+        self.index.add(np.array(embeddings).astype('float32'))
+
+    def get_similar_documents(self, query, k=5):
+        query_embedding = self.model.encode([query])
+        distances, indices = self.index.search(np.array(query_embedding).astype('float32'), k)
+        similar_docs = [self.documents[i] for i in indices[0]]
+        scores = [1 / (1 + d) for d in distances[0]]  # Convert distances to similarity scores
+        return similar_docs, scores
+
+class EnhancedQueryRewriter:
+    def __init__(self):
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained('bert-base-uncased')
+        self.model.eval()
+
+    def get_bert_embedding(self, text):
+        inputs = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+        return outputs.last_hidden_state[:, 0, :].numpy()[0]
+
+    def rewrite_query(self, query):
+        original_embedding = self.get_bert_embedding(query)
+        
+        tokens = nltk.word_tokenize(query.lower())
+        pos_tags = nltk.pos_tag(tokens)
+        
+        expanded_tokens = []
+        for token, pos in pos_tags:
+            expanded_tokens.append(token)
+            if pos.startswith('N') or pos.startswith('V'):
+                synsets = wordnet.synsets(token)
+                for synset in synsets[:2]:
+                    for lemma in synset.lemmas():
+                        if lemma.name() != token:
+                            expanded_tokens.append(lemma.name())
+        
+        expanded_query = ' '.join(expanded_tokens)
+        expanded_embedding = self.get_bert_embedding(expanded_query)
+        
+        combined_embedding = (original_embedding + expanded_embedding) / 2
+        
+        return expanded_query, combined_embedding
+
+class ImprovedResponseGenerator:
+    def __init__(self):
+        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+        self.model = GPT2LMHeadModel.from_pretrained('gpt2')
+        self.model.eval()
+
+    def generate_response(self, query, context, max_length=150):
+        input_text = f"Query: {query}\nContext: {context}\nResponse:"
+        input_ids = self.tokenizer.encode(input_text, return_tensors='pt')
+        
+        with torch.no_grad():
+            output = self.model.generate(
+                input_ids, 
+                max_length=max_length, 
+                num_return_sequences=1, 
+                no_repeat_ngram_size=2, 
+                top_k=50, 
+                top_p=0.95, 
+                temperature=0.7
+            )
+        
+        response = self.tokenizer.decode(output[0], skip_special_tokens=True)
+        return response.split("Response:")[-1].strip()
 
 class ChatBot:
     def __init__(self, session_state):
         self.session_state = session_state
-        
-        if not GOOGLE_APPLICATION_CREDENTIALS:
-            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
-        
-        self.drive_service = get_drive_service()
-        self.folder_id = GOOGLE_DRIVE_FOLDER_ID
-        
-        self.embedding_util = EmbeddingUtil()
-        
-        if not ANTHROPIC_API_KEY:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is not set.")
-        self.anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
-        
-        self.qa_model = pipeline("question-answering", model=QA_MODEL)
-        
-        self.documents = []
-        self.last_update_time = 0
-        self.update_interval = UPDATE_INTERVAL
-        self.update_lock = threading.Lock()
-        
-        self.cache = {}
-        
-        # Initialize documents and index
-        self.update_documents()
-        
-        # Start the background update thread
-        self.update_thread = threading.Thread(target=self.background_update, daemon=True)
-        self.update_thread.start()
+        self.documents = self.load_documents()
+        self.document_retrieval = OptimizedDocumentRetrieval(self.documents)
+        self.query_rewriter = EnhancedQueryRewriter()
+        self.response_generator = ImprovedResponseGenerator()
+        self.cache = TTLCache(maxsize=100, ttl=3600)  # Cache with max 100 items, expiring after 1 hour
+        self.http_client = httpx.AsyncClient()
+        self.last_update_time = time.time()
 
-    def background_update(self):
-        while True:
-            time.sleep(self.update_interval)
-            with self.update_lock:
-                self.update_documents()
+    def load_documents(self):
+        # This is a placeholder implementation. In a real scenario, you'd load your actual documents here.
+        return [
+            {"id": "1", "name": "JKKN Overview", "content": "JKKN Educational Institutions offer a wide range of programs..."},
+            {"id": "2", "name": "Admission Process", "content": "To apply for admission to JKKN, students need to follow these steps..."},
+            {"id": "3", "name": "Campus Facilities", "content": "JKKN campuses are equipped with state-of-the-art facilities including..."},
+            # Add more documents as needed
+        ]
 
-    def update_documents(self):
+    @cached(cache=lambda self: self.cache)
+    def get_similar_documents(self, query, k=5):
+        return self.document_retrieval.get_similar_documents(query, k)
+
+    @functools.lru_cache(maxsize=100)
+    def query_rewrite(self, query):
+        return self.query_rewriter.rewrite_query(query)
+
+    async def fetch_external_data(self, url):
+        # This is a placeholder. In a real scenario, you'd fetch actual external data.
+        await asyncio.sleep(1)  # Simulate network delay
+        return {"info": "This is some additional information about JKKN."}
+
+    async def process_user_input_async(self, user_input):
+        rewritten_query, query_embedding = self.query_rewrite(user_input)
+        similar_docs, scores = self.get_similar_documents(rewritten_query)
+        
+        external_data_task = asyncio.create_task(self.fetch_external_data("https://api.example.com/data"))
+        
+        context = "\n".join([doc['content'] for doc in similar_docs[:2]])
+        response = self.response_generator.generate_response(rewritten_query, context)
+        
         try:
-            new_documents = index_documents(self.drive_service, self.folder_id)
-            if new_documents:
-                new_texts = [doc['content'] for doc in new_documents if doc['id'] not in [d['id'] for d in self.documents]]
-                new_doc_ids = [doc['id'] for doc in new_documents if doc['id'] not in [d['id'] for d in self.documents]]
-                if new_texts:
-                    self.embedding_util.update_index(new_texts, new_doc_ids)
-                self.documents = new_documents
-                print(f"Updated {len(self.documents)} documents")
-            else:
-                print("No new documents found")
-        except Exception as e:
-            print(f"Error updating documents: {str(e)}")
-
-    def get_similar_documents(self, query, k=TOP_K_DOCUMENTS):
-        similar_doc_ids, scores = self.embedding_util.search_similar(query, k=k)
-        if not similar_doc_ids:
-            return [], []
-        return [doc for doc in self.documents if doc['id'] in similar_doc_ids], scores
-
-    def process_user_input(self, user_input: str) -> str:
-        if self.is_greeting(user_input):
-            return "Hello! How can I assist you with information about JKKN Educational Institutions today?"
-
-        # Check cache
-        if user_input in self.cache:
-            return self.cache[user_input]
-
-        try:
-            similar_docs, scores = self.get_similar_documents(user_input)
-            if not similar_docs:
-                return "I'm sorry, but I don't have any information to answer your question at the moment. Please try again later or ask a different question."
-
-            context = "\n\n".join([doc['content'] for doc in similar_docs])
-
-            # Early stopping
-            if scores and scores[0] > 0.9:  # Adjust this threshold as needed
-                context = similar_docs[0]['content']
-            
-            extracted_answer = self.extract_answer(user_input, context)
-            
-            rag_message = f"""Based on the following extracted answer and context from JKKN institutional documents, provide a comprehensive response to the user's question:
-
-            Extracted Answer: {extracted_answer}
-
-            Context:
-            {context}
-
-            User Question: {user_input}
-
-            Instructions:
-            1. Use the extracted answer and context to formulate a detailed response.
-            2. If the extracted answer doesn't seem relevant, rely more on the context.
-            3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
-            4. Provide ALL relevant information, even if it seems repetitive or extensive.
-            5. If the user's question is not specific or cannot be answered with the given context, politely ask for clarification.
-
-            Answer:
-            """
-
-            response_message = self.generate_message([{"role": "user", "content": rag_message}])
-            assistant_response = response_message.content[0].text
-
-            # Cache the response
-            self.cache[user_input] = assistant_response
-
-            return assistant_response
-        except Exception as e:
-            logging.error(f"Error processing user input: {str(e)}")
-            return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
-
-    def is_greeting(self, text):
-        greetings = ['hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
-        return any(re.search(rf'\b{greeting}\b', text.lower()) for greeting in greetings)
-
-    def extract_answer(self, question, context):
-        if not context:
-            return "I'm sorry, but I don't have enough information to answer that question accurately."
-        result = self.qa_model(question=question, context=context)
-        return result['answer']
-
-    def generate_message(self, messages, max_tokens=MAX_TOKENS):
-        try:
-            response = self.anthropic.messages.create(
-                model=ANTHROPIC_MODEL,
-                max_tokens=max_tokens,
-                messages=messages
-            )
-            return response
-        except Exception as e:
-            logging.error(f"Error generating message: {str(e)}")
-            raise
+            external_data = await external_data_task
+            enhanced_response = f"{response}\n\nAdditional info: {external_data['info']}"
+        except Exception:
+            enhanced_response = response  # Fallback to original response if external data fetch fails
+        
+        return enhanced_response
 
     def get_indexed_document_names(self):
         return [doc['name'] for doc in self.documents]
 
-    def query_rewrite(self, query):
-        # Simple query rewriting rules
-        query = query.lower()
-        query = re.sub(r'\bwhats\b', 'what is', query)
-        query = re.sub(r'\bhows\b', 'how is', query)
-        query = re.sub(r'\bwheres\b', 'where is', query)
-        query = re.sub(r'\bwhos\b', 'who is', query)
-        return query
+    async def close(self):
+        await self.http_client.aclose()
