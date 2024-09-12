@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import logging
 from google_drive_utils import get_drive_service, index_documents
 from embedding_utils import EmbeddingUtil
-from elasticsearch import Elasticsearch
 from anthropic import Anthropic
 from transformers import pipeline
 
@@ -22,14 +21,6 @@ class ChatBot:
         self.drive_service = get_drive_service()
         self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Your Google Drive folder ID
         
-        # Check for Elasticsearch
-        try:
-            self.es = Elasticsearch(["http://localhost:9200"])
-            if not self.es.ping():
-                raise ValueError("Could not connect to Elasticsearch. Make sure it's running on http://localhost:9200")
-        except Exception as e:
-            raise ValueError(f"Error connecting to Elasticsearch: {str(e)}")
-        
         self.embedding_util = EmbeddingUtil()
         
         # Check for Anthropic API key
@@ -40,13 +31,15 @@ class ChatBot:
         
         self.qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
         
+        self.documents = self.index_documents()
         self.index_and_vectorize_documents()
 
+    def index_documents(self):
+        return index_documents(self.drive_service, self.folder_id)
+
     def index_and_vectorize_documents(self):
-        index_documents(self.drive_service, self.folder_id)
-        documents = self.es.search(index="jkkn_documents", body={"query": {"match_all": {}}}, size=1000)
-        texts = [doc['_source']['content'] for doc in documents['hits']['hits']]
-        doc_ids = [doc['_id'] for doc in documents['hits']['hits']]
+        texts = [doc['content'] for doc in self.documents]
+        doc_ids = [doc['id'] for doc in self.documents]
         embeddings = self.embedding_util.create_embeddings(texts)
         self.embedding_util.create_faiss_index(embeddings, doc_ids)
 
@@ -83,8 +76,7 @@ class ChatBot:
             return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
 
     def get_context_from_ids(self, doc_ids):
-        documents = self.es.mget(index="jkkn_documents", body={"ids": doc_ids})
-        relevant_docs = [doc['_source']['content'] for doc in documents['docs'] if doc['found']]
+        relevant_docs = [doc['content'] for doc in self.documents if doc['id'] in doc_ids]
         return "\n\n".join(relevant_docs)
 
     def extract_answer(self, question, context):

@@ -4,14 +4,10 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
-from elasticsearch import Elasticsearch
 from file_processor import extract_file_text
 
 # Load environment variables
 load_dotenv()
-
-# Correct Elasticsearch initialization
-es = Elasticsearch(["http://localhost:9200"])
 
 def get_drive_service():
     credentials = service_account.Credentials.from_service_account_file(
@@ -37,12 +33,14 @@ def get_document_content(service, file_id):
 
 def index_documents(service, folder_id):
     files = get_documents(service, folder_id)
+    documents = []
     for file in files:
         content = get_document_content(service, file['id'])
         text = extract_file_text(file['name'], io.BytesIO(content))
-        
-        es.index(index="jkkn_documents", id=file['id'], body={
+        documents.append({
+            'id': file['id'],
             'name': file['name'],
             'content': text
         })
     print(f"Indexed {len(files)} documents")
+    return documents
