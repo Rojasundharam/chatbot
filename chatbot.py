@@ -1,41 +1,44 @@
-import os
 import time
 import threading
-from dotenv import load_dotenv
 import logging
+import re
 from google_drive_utils import get_drive_service, index_documents
 from embedding_utils import EmbeddingUtil
 from anthropic import Anthropic
 from transformers import pipeline
-
-# Load environment variables
-load_dotenv()
+from config import (
+    GOOGLE_DRIVE_FOLDER_ID,
+    GOOGLE_APPLICATION_CREDENTIALS,
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL,
+    UPDATE_INTERVAL,
+    EMBEDDING_MODEL,
+    QA_MODEL,
+    MAX_TOKENS,
+    TOP_K_DOCUMENTS
+)
 
 class ChatBot:
     def __init__(self, session_state):
         self.session_state = session_state
         
-        # Check for Google credentials
-        google_creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if not google_creds_path:
-            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. Please set it to the path of your Google Cloud service account key file.")
+        if not GOOGLE_APPLICATION_CREDENTIALS:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
         
         self.drive_service = get_drive_service()
-        self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Your Google Drive folder ID
+        self.folder_id = GOOGLE_DRIVE_FOLDER_ID
         
-        self.embedding_util = EmbeddingUtil()
+        self.embedding_util = EmbeddingUtil(EMBEDDING_MODEL)
         
-        # Check for Anthropic API key
-        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not anthropic_api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is not set. Please set it to your Anthropic API key.")
-        self.anthropic = Anthropic(api_key=anthropic_api_key)
+        if not ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set.")
+        self.anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        self.qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+        self.qa_model = pipeline("question-answering", model=QA_MODEL)
         
         self.documents = []
         self.last_update_time = 0
-        self.update_interval = 600  # 10 minutes in seconds
+        self.update_interval = UPDATE_INTERVAL
         self.update_lock = threading.Lock()
         
         # Start the background update thread
@@ -73,14 +76,17 @@ class ChatBot:
         embeddings = self.embedding_util.create_embeddings(texts)
         self.embedding_util.create_faiss_index(embeddings, doc_ids)
 
-    def get_similar_documents(self, query, k=3):
+    def get_similar_documents(self, query, k=TOP_K_DOCUMENTS):
         similar_doc_ids = self.embedding_util.search_similar(query, k=k)
         return [doc for doc in self.documents if doc['id'] in similar_doc_ids]
 
     def process_user_input(self, user_input: str) -> str:
+        if self.is_greeting(user_input):
+            return "Hello! How can I assist you with information about JKKN Educational Institutions today?"
+
         with self.update_lock:
             try:
-                similar_docs = self.get_similar_documents(user_input, k=3)
+                similar_docs = self.get_similar_documents(user_input)
                 context = "\n\n".join([doc['content'] for doc in similar_docs])
                 
                 extracted_answer = self.extract_answer(user_input, context)
@@ -99,6 +105,7 @@ class ChatBot:
                 2. If the extracted answer doesn't seem relevant, rely more on the context.
                 3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
                 4. Provide ALL relevant information, even if it seems repetitive or extensive.
+                5. If the user's question is not specific or cannot be answered with the given context, politely ask for clarification.
 
                 Answer:
                 """
@@ -110,9 +117,9 @@ class ChatBot:
                 logging.error(f"Error processing user input: {str(e)}")
                 return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
 
-    def get_context_from_ids(self, doc_ids):
-        relevant_docs = [doc['content'] for doc in self.documents if doc['id'] in doc_ids]
-        return "\n\n".join(relevant_docs)
+    def is_greeting(self, text):
+        greetings = ['hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
+        return any(re.search(rf'\b{greeting}\b', text.lower()) for greeting in greetings)
 
     def extract_answer(self, question, context):
         if not context:
@@ -120,10 +127,10 @@ class ChatBot:
         result = self.qa_model(question=question, context=context)
         return result['answer']
 
-    def generate_message(self, messages, max_tokens=2048):
+    def generate_message(self, messages, max_tokens=MAX_TOKENS):
         try:
             response = self.anthropic.messages.create(
-                model="claude-2.1",
+                model=ANTHROPIC_MODEL,
                 max_tokens=max_tokens,
                 messages=messages
             )
