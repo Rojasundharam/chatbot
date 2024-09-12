@@ -17,14 +17,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def download_nltk_data():
     resources = [
-        ('punkt', 'tokenizers/punkt'),
-        ('averaged_perceptron_tagger', 'taggers/averaged_perceptron_tagger'),
-        ('wordnet', 'corpora/wordnet')
+        'punkt',
+        'averaged_perceptron_tagger',
+        'wordnet'
     ]
     
-    for resource, path in resources:
+    for resource in resources:
         try:
-            nltk.data.find(path)
+            nltk.data.find(f'tokenizers/{resource}')
             logging.info(f"NLTK resource '{resource}' is already downloaded.")
         except LookupError:
             logging.info(f"Downloading NLTK resource: {resource}")

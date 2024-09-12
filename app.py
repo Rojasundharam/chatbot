@@ -42,7 +42,6 @@ def get_chatbot():
         return ChatBot(st.session_state)
     except Exception as e:
         logging.error(f"Error initializing ChatBot: {str(e)}")
-        st.error(f"Failed to initialize ChatBot: {str(e)}")
         return None
 
 def initialize_chatbot():
