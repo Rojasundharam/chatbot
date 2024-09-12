@@ -50,23 +50,30 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
-    # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    # User input
     if prompt := st.chat_input("Type your question here"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
-        
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
                     response = st.session_state.chatbot.process_user_input(prompt)
                     st.write(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
+
+                    # Display top document matches
+                    st.subheader("Top Matching Documents:")
+                    similar_doc_ids = st.session_state.chatbot.embedding_util.search_similar(prompt, k=3)
+                    for doc_id in similar_doc_ids:
+                        doc = st.session_state.chatbot.es.get(index="jkkn_documents", id=doc_id)
+                        st.write(f"- {doc['_source']['name']}")
+                        st.write(f"  Link: https://drive.google.com/file/d/{doc_id}/view")
+
                 except Exception as e:
                     error_msg = f"Error processing request: {str(e)}"
                     st.error(error_msg)
