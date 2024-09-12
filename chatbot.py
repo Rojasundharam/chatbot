@@ -1,4 +1,6 @@
 import os
+import time
+import threading
 from dotenv import load_dotenv
 import logging
 from google_drive_utils import get_drive_service, index_documents
@@ -31,18 +33,35 @@ class ChatBot:
         
         self.qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
         
-        self.documents = self.index_documents()
-        self.index_and_vectorize_documents()
+        self.documents = []
+        self.last_update_time = 0
+        self.update_interval = 600  # 10 minutes in seconds
+        self.update_lock = threading.Lock()
+        
+        # Start the background update thread
+        self.update_thread = threading.Thread(target=self.background_update, daemon=True)
+        self.update_thread.start()
 
-    def index_documents(self):
+    def background_update(self):
+        while True:
+            current_time = time.time()
+            if current_time - self.last_update_time >= self.update_interval:
+                with self.update_lock:
+                    self.update_documents()
+                self.last_update_time = current_time
+            time.sleep(60)  # Check every minute
+
+    def update_documents(self):
         try:
-            documents = index_documents(self.drive_service, self.folder_id)
-            if not documents:
-                print("No documents were successfully indexed. The chatbot may not have any information to work with.")
-            return documents
+            new_documents = index_documents(self.drive_service, self.folder_id)
+            if new_documents:
+                self.documents = new_documents
+                self.index_and_vectorize_documents()
+                print(f"Updated {len(self.documents)} documents")
+            else:
+                print("No new documents found")
         except Exception as e:
-            print(f"Error during document indexing: {str(e)}")
-            return []
+            print(f"Error updating documents: {str(e)}")
 
     def index_and_vectorize_documents(self):
         if not self.documents:
@@ -54,37 +73,42 @@ class ChatBot:
         embeddings = self.embedding_util.create_embeddings(texts)
         self.embedding_util.create_faiss_index(embeddings, doc_ids)
 
+    def get_similar_documents(self, query, k=3):
+        similar_doc_ids = self.embedding_util.search_similar(query, k=k)
+        return [doc for doc in self.documents if doc['id'] in similar_doc_ids]
+
     def process_user_input(self, user_input: str) -> str:
-        try:
-            similar_doc_ids = self.embedding_util.search_similar(user_input, k=3)
-            context = self.get_context_from_ids(similar_doc_ids)
-            
-            extracted_answer = self.extract_answer(user_input, context)
-            
-            rag_message = f"""Based on the following extracted answer and context from JKKN institutional documents, provide a comprehensive response to the user's question:
+        with self.update_lock:
+            try:
+                similar_docs = self.get_similar_documents(user_input, k=3)
+                context = "\n\n".join([doc['content'] for doc in similar_docs])
+                
+                extracted_answer = self.extract_answer(user_input, context)
+                
+                rag_message = f"""Based on the following extracted answer and context from JKKN institutional documents, provide a comprehensive response to the user's question:
 
-            Extracted Answer: {extracted_answer}
+                Extracted Answer: {extracted_answer}
 
-            Context:
-            {context}
+                Context:
+                {context}
 
-            User Question: {user_input}
+                User Question: {user_input}
 
-            Instructions:
-            1. Use the extracted answer and context to formulate a detailed response.
-            2. If the extracted answer doesn't seem relevant, rely more on the context.
-            3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
-            4. Provide ALL relevant information, even if it seems repetitive or extensive.
+                Instructions:
+                1. Use the extracted answer and context to formulate a detailed response.
+                2. If the extracted answer doesn't seem relevant, rely more on the context.
+                3. Begin your response with "According to the JKKN documents:" to emphasize that the information comes directly from the institution's materials.
+                4. Provide ALL relevant information, even if it seems repetitive or extensive.
 
-            Answer:
-            """
+                Answer:
+                """
 
-            response_message = self.generate_message([{"role": "user", "content": rag_message}])
-            assistant_response = response_message.content[0].text
-            return assistant_response
-        except Exception as e:
-            logging.error(f"Error processing user input: {str(e)}")
-            return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
+                response_message = self.generate_message([{"role": "user", "content": rag_message}])
+                assistant_response = response_message.content[0].text
+                return assistant_response
+            except Exception as e:
+                logging.error(f"Error processing user input: {str(e)}")
+                return "I apologize, but I encountered an error while processing your request. Could you please try rephrasing your question about JKKN institutions?"
 
     def get_context_from_ids(self, doc_ids):
         relevant_docs = [doc['content'] for doc in self.documents if doc['id'] in doc_ids]
@@ -108,14 +132,5 @@ class ChatBot:
             logging.error(f"Error generating message: {str(e)}")
             raise
 
-    def get_top_documents(self, user_input: str, k: int = 3) -> list:
-        similar_doc_ids = self.embedding_util.search_similar(user_input, k=k)
-        top_docs = []
-        for doc_id in similar_doc_ids:
-            doc = next((doc for doc in self.documents if doc['id'] == doc_id), None)
-            if doc:
-                top_docs.append({
-                    'name': doc['name'],
-                    'id': doc['id']
-                })
-        return top_docs
+    def get_indexed_document_names(self):
+        return [doc['name'] for doc in self.documents]
