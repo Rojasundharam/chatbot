@@ -41,6 +41,8 @@ class ChatBot:
         self.update_interval = UPDATE_INTERVAL
         self.update_lock = threading.Lock()
         
+        self.cache = {}
+        
         # Start the background update thread
         self.update_thread = threading.Thread(target=self.background_update, daemon=True)
         self.update_thread.start()
@@ -58,36 +60,37 @@ class ChatBot:
         try:
             new_documents = index_documents(self.drive_service, self.folder_id)
             if new_documents:
+                new_texts = [doc['content'] for doc in new_documents if doc['id'] not in [d['id'] for d in self.documents]]
+                new_doc_ids = [doc['id'] for doc in new_documents if doc['id'] not in [d['id'] for d in self.documents]]
+                if new_texts:
+                    self.embedding_util.update_index(new_texts, new_doc_ids)
                 self.documents = new_documents
-                self.index_and_vectorize_documents()
                 print(f"Updated {len(self.documents)} documents")
             else:
                 print("No new documents found")
         except Exception as e:
             print(f"Error updating documents: {str(e)}")
 
-    def index_and_vectorize_documents(self):
-        if not self.documents:
-            print("No documents to vectorize. The chatbot may not be able to provide accurate responses.")
-            return
-        
-        texts = [doc['content'] for doc in self.documents]
-        doc_ids = [doc['id'] for doc in self.documents]
-        embeddings = self.embedding_util.create_embeddings(texts)
-        self.embedding_util.create_faiss_index(embeddings, doc_ids)
-
     def get_similar_documents(self, query, k=TOP_K_DOCUMENTS):
-        similar_doc_ids = self.embedding_util.search_similar(query, k=k)
-        return [doc for doc in self.documents if doc['id'] in similar_doc_ids]
+        similar_doc_ids, scores = self.embedding_util.search_similar(query, k=k)
+        return [doc for doc in self.documents if doc['id'] in similar_doc_ids], scores
 
     def process_user_input(self, user_input: str) -> str:
         if self.is_greeting(user_input):
             return "Hello! How can I assist you with information about JKKN Educational Institutions today?"
 
+        # Check cache
+        if user_input in self.cache:
+            return self.cache[user_input]
+
         with self.update_lock:
             try:
-                similar_docs = self.get_similar_documents(user_input)
+                similar_docs, scores = self.get_similar_documents(user_input)
                 context = "\n\n".join([doc['content'] for doc in similar_docs])
+
+                # Early stopping
+                if scores[0] > 0.9:  # Adjust this threshold as needed
+                    context = similar_docs[0]['content']
                 
                 extracted_answer = self.extract_answer(user_input, context)
                 
@@ -112,6 +115,10 @@ class ChatBot:
 
                 response_message = self.generate_message([{"role": "user", "content": rag_message}])
                 assistant_response = response_message.content[0].text
+
+                # Cache the response
+                self.cache[user_input] = assistant_response
+
                 return assistant_response
             except Exception as e:
                 logging.error(f"Error processing user input: {str(e)}")
@@ -141,3 +148,12 @@ class ChatBot:
 
     def get_indexed_document_names(self):
         return [doc['name'] for doc in self.documents]
+
+    def query_rewrite(self, query):
+        # Simple query rewriting rules
+        query = query.lower()
+        query = re.sub(r'\bwhats\b', 'what is', query)
+        query = re.sub(r'\bhows\b', 'how is', query)
+        query = re.sub(r'\bwheres\b', 'where is', query)
+        query = re.sub(r'\bwhos\b', 'who is', query)
+        return query
