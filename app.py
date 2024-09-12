@@ -73,16 +73,16 @@ def main():
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    response = st.session_state.chatbot.process_user_input(prompt)
+                    response = st.session_state.chatbot.process_user_input(st.session_state.chatbot.query_rewrite(prompt))
                     st.write(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
 
                     # Display top document matches
-                    similar_docs = st.session_state.chatbot.get_similar_documents(prompt)
+                    similar_docs, scores = st.session_state.chatbot.get_similar_documents(prompt)
                     if similar_docs:
                         st.subheader("Top Matching Documents:")
-                        for doc in similar_docs:
-                            st.write(f"- {doc['name']}")
+                        for doc, score in zip(similar_docs, scores):
+                            st.write(f"- {doc['name']} (Relevance: {score:.2f})")
                             st.write(f"  Link: https://drive.google.com/file/d/{doc['id']}/view")
                     else:
                         st.info("No closely matching documents found for this query.")

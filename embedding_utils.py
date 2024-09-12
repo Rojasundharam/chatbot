@@ -25,7 +25,7 @@ class EmbeddingUtil:
             return [], []
         query_vector = self.create_embeddings([query])[0]
         D, I = self.index.search(np.array([query_vector]).astype('float32'), k)
-        return [self.doc_ids[i] for i in I[0]], D[0]
+        return [self.doc_ids[i] for i in I[0] if i < len(self.doc_ids)], D[0].tolist()
 
     def update_index(self, new_texts, new_doc_ids):
         new_embeddings = self.create_embeddings(new_texts)
