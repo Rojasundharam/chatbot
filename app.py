@@ -3,6 +3,9 @@ from chatbot import ChatBot
 import logging
 import time
 from config import STREAMLIT_THEME_COLOR
+import cProfile
+import pstats
+import io
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -29,10 +32,14 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+@st.cache_resource
+def get_chatbot():
+    return ChatBot(st.session_state)
+
 def initialize_chatbot():
     if "chatbot" not in st.session_state:
         try:
-            st.session_state.chatbot = ChatBot(st.session_state)
+            st.session_state.chatbot = get_chatbot()
             logging.info("ChatBot initialized successfully")
         except ValueError as e:
             st.error(f"Failed to initialize ChatBot: {str(e)}")
@@ -43,6 +50,22 @@ def initialize_chatbot():
             st.error(f"An unexpected error occurred: {str(e)}")
             return False
     return True
+
+def process_user_input(chatbot, prompt):
+    pr = cProfile.Profile()
+    pr.enable()
+
+    response = chatbot.process_user_input(chatbot.query_rewrite(prompt))
+    similar_docs, scores = chatbot.get_similar_documents(prompt)
+
+    pr.disable()
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+    ps.print_stats()
+
+    logging.info(f"Performance profile:\n{s.getvalue()}")
+
+    return response, similar_docs, scores
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -73,12 +96,11 @@ def main():
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    response = st.session_state.chatbot.process_user_input(st.session_state.chatbot.query_rewrite(prompt))
+                    response, similar_docs, scores = process_user_input(st.session_state.chatbot, prompt)
                     st.write(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
 
                     # Display top document matches
-                    similar_docs, scores = st.session_state.chatbot.get_similar_documents(prompt)
                     if similar_docs:
                         st.subheader("Top Matching Documents:")
                         for doc, score in zip(similar_docs, scores):
@@ -93,12 +115,10 @@ def main():
                     logging.error(error_msg)
 
     # Update sidebar information
-    while True:
-        last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
-        indexed_docs.text("Indexed documents:")
-        for doc_name in st.session_state.chatbot.get_indexed_document_names():
-            indexed_docs.text(f"- {doc_name}")
-        time.sleep(60)  # Update every minute
+    last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
+    indexed_docs.text("Indexed documents:")
+    for doc_name in st.session_state.chatbot.get_indexed_document_names():
+        indexed_docs.text(f"- {doc_name}")
 
 if __name__ == "__main__":
     main()
