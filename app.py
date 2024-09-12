@@ -39,8 +39,6 @@ def load_bert_model():
     model = BertModel.from_pretrained('bert-base-uncased')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
-    model = torch.jit.script(model)
-    model = model.half()
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     return model, device, tokenizer
 
@@ -68,7 +66,7 @@ def process_user_input(chatbot, prompt, model, device, tokenizer):
     pr = cProfile.Profile()
     pr.enable()
 
-    # Use the optimized BERT model for query rewriting
+    # Use the BERT model for query rewriting
     with torch.no_grad():
         inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
         outputs = model(**inputs)
@@ -120,8 +118,11 @@ def main():
             message_placeholder = st.empty()
             full_response = ""
             
-            for chunk in process_user_input(st.session_state.chatbot, prompt, model, device, tokenizer):
+            response, similar_docs, scores = process_user_input(st.session_state.chatbot, prompt, model, device, tokenizer)
+            
+            for chunk in response.split():  # Simulate streaming response
                 full_response += chunk + " "
+                time.sleep(0.05)  # Add a small delay for a more natural effect
                 message_placeholder.markdown(full_response + "▌")
             
             message_placeholder.markdown(full_response)
@@ -129,9 +130,9 @@ def main():
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             # Display top document matches
-            if similar_docs := st.session_state.chatbot.get_similar_documents(prompt):
+            if similar_docs:
                 with st.expander("Top Matching Documents"):
-                    for doc, score in similar_docs:
+                    for doc, score in zip(similar_docs, scores):
                         st.markdown(f"- [{doc['name']}](https://drive.google.com/file/d/{doc['id']}/view) (Relevance: {score:.2f})")
             else:
                 st.info("No closely matching documents found for this query.")
