@@ -28,7 +28,7 @@ class ChatBot:
         self.drive_service = get_drive_service()
         self.folder_id = GOOGLE_DRIVE_FOLDER_ID
         
-        self.embedding_util = EmbeddingUtil(EMBEDDING_MODEL)
+        self.embedding_util = EmbeddingUtil()
         
         if not ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set.")
