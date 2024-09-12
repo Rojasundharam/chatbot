@@ -11,12 +11,23 @@ from transformers import BertTokenizer, BertModel
 import nltk
 from nltk.corpus import wordnet
 
-# Download required NLTK data
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('wordnet')
-
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Function to download NLTK data
+@st.cache_resource
+def download_nltk_data():
+    try:
+        nltk.download('punkt')
+        nltk.download('averaged_perceptron_tagger')
+        nltk.download('wordnet')
+        nltk.download('punkt_tab')
+    except Exception as e:
+        st.error(f"Failed to download NLTK data: {str(e)}")
+        logging.error(f"Failed to download NLTK data: {str(e)}")
+
+# Download NLTK data
+download_nltk_data()
 
 # Custom CSS for green gradient theme
 st.markdown(f"""
@@ -69,61 +80,69 @@ def initialize_chatbot():
     return True
 
 def query_rewrite(query):
-    # Tokenize the query
-    tokens = nltk.word_tokenize(query.lower())
-    
-    # Perform part-of-speech tagging
-    pos_tags = nltk.pos_tag(tokens)
-    
-    # Expand query with synonyms for nouns and verbs
-    expanded_tokens = []
-    for token, pos in pos_tags:
-        expanded_tokens.append(token)
-        if pos.startswith('N') or pos.startswith('V'):  # Nouns or Verbs
-            synsets = wordnet.synsets(token)
-            for synset in synsets[:2]:  # Take up to 2 synonyms
-                for lemma in synset.lemmas():
-                    if lemma.name() != token:
-                        expanded_tokens.append(lemma.name())
-    
-    # Join the expanded tokens back into a query
-    expanded_query = ' '.join(expanded_tokens)
-    
-    # Add JKKN-specific terms if they're not already in the query
-    jkkn_terms = ['jkkn', 'education', 'institution', 'college', 'university']
-    for term in jkkn_terms:
-        if term not in expanded_query:
-            expanded_query += f' {term}'
-    
-    return expanded_query
+    try:
+        # Tokenize the query
+        tokens = nltk.word_tokenize(query.lower())
+        
+        # Perform part-of-speech tagging
+        pos_tags = nltk.pos_tag(tokens)
+        
+        # Expand query with synonyms for nouns and verbs
+        expanded_tokens = []
+        for token, pos in pos_tags:
+            expanded_tokens.append(token)
+            if pos.startswith('N') or pos.startswith('V'):  # Nouns or Verbs
+                synsets = wordnet.synsets(token)
+                for synset in synsets[:2]:  # Take up to 2 synonyms
+                    for lemma in synset.lemmas():
+                        if lemma.name() != token:
+                            expanded_tokens.append(lemma.name())
+        
+        # Join the expanded tokens back into a query
+        expanded_query = ' '.join(expanded_tokens)
+        
+        # Add JKKN-specific terms if they're not already in the query
+        jkkn_terms = ['jkkn', 'education', 'institution', 'college', 'university']
+        for term in jkkn_terms:
+            if term not in expanded_query:
+                expanded_query += f' {term}'
+        
+        return expanded_query
+    except Exception as e:
+        logging.error(f"Error in query_rewrite: {str(e)}")
+        return query  # Return original query if there's an error
 
 def process_user_input(prompt, model, device, tokenizer):
     pr = cProfile.Profile()
     pr.enable()
 
-    # Use the BERT model for query rewriting
-    with torch.no_grad():
-        inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-        outputs = model(**inputs)
-        embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-    
-    chatbot = st.session_state.chatbot
-    
-    # Rewrite the query
-    rewritten_query = query_rewrite(prompt)
-    
-    # Process the rewritten query
-    response = chatbot.process_user_input(rewritten_query)
-    similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
+    try:
+        # Use the BERT model for query rewriting
+        with torch.no_grad():
+            inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
+            outputs = model(**inputs)
+            embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+        
+        chatbot = st.session_state.chatbot
+        
+        # Rewrite the query
+        rewritten_query = query_rewrite(prompt)
+        
+        # Process the rewritten query
+        response = chatbot.process_user_input(rewritten_query)
+        similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
 
-    pr.disable()
-    s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
-    ps.print_stats()
+        pr.disable()
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+        ps.print_stats()
 
-    logging.info(f"Performance profile:\n{s.getvalue()}")
+        logging.info(f"Performance profile:\n{s.getvalue()}")
 
-    return response, similar_docs, scores
+        return response, similar_docs, scores
+    except Exception as e:
+        logging.error(f"Error in process_user_input: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request. Could you please try again?", [], []
 
 def handle_greeting(name):
     return f"Hello {name}! Welcome to JKKN Assist. How can I help you with information about JKKN Educational Institutions today?"
