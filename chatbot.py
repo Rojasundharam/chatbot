@@ -31,6 +31,9 @@ def download_nltk_data():
             nltk.download(resource, quiet=True)
             logging.info(f"Successfully downloaded NLTK resource: {resource}")
 
+    # Explicitly download the 'averaged_perceptron_tagger' as it might be causing issues
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+
 # Download required NLTK data
 download_nltk_data()
 
@@ -146,7 +149,6 @@ class ChatBot:
     def get_similar_documents(self, query, k=5):
         return self.document_retrieval.get_similar_documents(query, k)
 
-    @functools.lru_cache(maxsize=100)
     def query_rewrite(self, query):
         return self.query_rewriter.rewrite_query(query)
 
