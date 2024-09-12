@@ -71,7 +71,11 @@ class EnhancedQueryRewriter:
             original_embedding = self.get_bert_embedding(query)
             
             tokens = nltk.word_tokenize(query.lower())
-            pos_tags = nltk.pos_tag(tokens)
+            try:
+                pos_tags = nltk.pos_tag(tokens)
+            except LookupError:
+                logging.error("POS tagger not found. Using original tokens.")
+                pos_tags = [(token, 'UNK') for token in tokens]
             
             expanded_tokens = []
             for token, pos in pos_tags:
