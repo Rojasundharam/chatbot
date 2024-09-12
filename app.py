@@ -72,7 +72,14 @@ def process_user_input(prompt, model, device, tokenizer):
         embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
     
     chatbot = st.session_state.chatbot
-    rewritten_query = chatbot.query_rewrite(prompt, embeddings[0])
+    
+    # Check if the query_rewrite method accepts embeddings
+    if 'embeddings' in chatbot.query_rewrite.__code__.co_varnames:
+        rewritten_query = chatbot.query_rewrite(prompt, embeddings[0])
+    else:
+        # If not, just use the original query_rewrite method
+        rewritten_query = chatbot.query_rewrite(prompt)
+    
     response = chatbot.process_user_input(rewritten_query)
     similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
 
