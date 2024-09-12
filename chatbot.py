@@ -35,9 +35,20 @@ class ChatBot:
         self.index_and_vectorize_documents()
 
     def index_documents(self):
-        return index_documents(self.drive_service, self.folder_id)
+        try:
+            documents = index_documents(self.drive_service, self.folder_id)
+            if not documents:
+                print("No documents were successfully indexed. The chatbot may not have any information to work with.")
+            return documents
+        except Exception as e:
+            print(f"Error during document indexing: {str(e)}")
+            return []
 
     def index_and_vectorize_documents(self):
+        if not self.documents:
+            print("No documents to vectorize. The chatbot may not be able to provide accurate responses.")
+            return
+        
         texts = [doc['content'] for doc in self.documents]
         doc_ids = [doc['id'] for doc in self.documents]
         embeddings = self.embedding_util.create_embeddings(texts)
@@ -80,6 +91,8 @@ class ChatBot:
         return "\n\n".join(relevant_docs)
 
     def extract_answer(self, question, context):
+        if not context:
+            return "I'm sorry, but I don't have enough information to answer that question accurately."
         result = self.qa_model(question=question, context=context)
         return result['answer']
 
@@ -94,3 +107,15 @@ class ChatBot:
         except Exception as e:
             logging.error(f"Error generating message: {str(e)}")
             raise
+
+    def get_top_documents(self, user_input: str, k: int = 3) -> list:
+        similar_doc_ids = self.embedding_util.search_similar(user_input, k=k)
+        top_docs = []
+        for doc_id in similar_doc_ids:
+            doc = next((doc for doc in self.documents if doc['id'] == doc_id), None)
+            if doc:
+                top_docs.append({
+                    'name': doc['name'],
+                    'id': doc['id']
+                })
+        return top_docs
