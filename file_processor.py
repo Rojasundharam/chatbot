@@ -96,7 +96,9 @@ def extract_file_text(file_name: str, file: IO[Any]) -> str:
         return docx_to_text(file)
     elif extension == '.pptx':
         return pptx_to_text(file)
-    elif extension in ['.xlsx', '.csv']:
+    elif extension == '.xlsx':
+        return xlsx_to_text(file)
+    elif extension == '.csv':
         return csv_to_text(file)
     else:
         raise ValueError(f"Unsupported file extension: {extension}")

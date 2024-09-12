@@ -2,29 +2,30 @@ import streamlit as st
 from chatbot import ChatBot
 import logging
 import time
+from config import STREAMLIT_THEME_COLOR
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Custom CSS for green gradient theme
-st.markdown("""
+st.markdown(f"""
 <style>
-    .stApp {
-        background: linear-gradient(to bottom right, #a8e063, #56ab2f);
-    }
-    .stTextInput > div > div > input {
+    .stApp {{
+        background: linear-gradient(to bottom right, #a8e063, {STREAMLIT_THEME_COLOR});
+    }}
+    .stTextInput > div > div > input {{
         background-color: #e8f5e9;
-    }
-    .stChatMessage {
+    }}
+    .stChatMessage {{
         background-color: rgba(255, 255, 255, 0.7) !important;
         border-radius: 15px;
         padding: 10px;
-    }
-    .stChatMessageContent {
+    }}
+    .stChatMessageContent {{
         background-color: transparent !important;
-    }
-    h1 {
+    }}
+    h1 {{
         color: #1b5e20;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,11 +78,14 @@ def main():
                     st.session_state.messages.append({"role": "assistant", "content": response})
 
                     # Display top document matches
-                    st.subheader("Top Matching Documents:")
-                    similar_docs = st.session_state.chatbot.get_similar_documents(prompt, k=3)
-                    for doc in similar_docs:
-                        st.write(f"- {doc['name']}")
-                        st.write(f"  Link: https://drive.google.com/file/d/{doc['id']}/view")
+                    similar_docs = st.session_state.chatbot.get_similar_documents(prompt)
+                    if similar_docs:
+                        st.subheader("Top Matching Documents:")
+                        for doc in similar_docs:
+                            st.write(f"- {doc['name']}")
+                            st.write(f"  Link: https://drive.google.com/file/d/{doc['id']}/view")
+                    else:
+                        st.info("No closely matching documents found for this query.")
 
                 except Exception as e:
                     error_msg = f"Error processing request: {str(e)}"
