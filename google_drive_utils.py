@@ -1,10 +1,14 @@
 import os
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
 from elasticsearch import Elasticsearch
 from file_processor import extract_file_text
+
+# Load environment variables
+load_dotenv()
 
 # Correct Elasticsearch initialization
 es = Elasticsearch(["http://localhost:9200"])

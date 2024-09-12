@@ -1,10 +1,14 @@
 import os
+from dotenv import load_dotenv
 import logging
 from google_drive_utils import get_drive_service, index_documents
 from embedding_utils import EmbeddingUtil
 from elasticsearch import Elasticsearch
 from anthropic import Anthropic
 from transformers import pipeline
+
+# Load environment variables
+load_dotenv()
 
 class ChatBot:
     def __init__(self, session_state):

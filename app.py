@@ -1,6 +1,10 @@
 import streamlit as st
 from chatbot import ChatBot
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
