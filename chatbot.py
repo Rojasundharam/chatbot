@@ -12,9 +12,20 @@ import functools
 import httpx
 
 def download_nltk_data():
-    nltk.download('punkt', quiet=True)
-    nltk.download('averaged_perceptron_tagger', quiet=True)
-    nltk.download('wordnet', quiet=True)
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
+    
+    try:
+        nltk.data.find('taggers/averaged_perceptron_tagger')
+    except LookupError:
+        nltk.download('averaged_perceptron_tagger', quiet=True)
+    
+    try:
+        nltk.data.find('corpora/wordnet')
+    except LookupError:
+        nltk.download('wordnet', quiet=True)
 
 # Download required NLTK data
 download_nltk_data()
@@ -112,10 +123,11 @@ class ChatBot:
     def load_documents(self):
         # This is a placeholder implementation. In a real scenario, you'd load your actual documents here.
         return [
-            {"id": "1", "name": "JKKN Overview", "content": "JKKN Educational Institutions offer a wide range of programs..."},
-            {"id": "2", "name": "Admission Process", "content": "To apply for admission to JKKN, students need to follow these steps..."},
-            {"id": "3", "name": "Campus Facilities", "content": "JKKN campuses are equipped with state-of-the-art facilities including..."},
-            # Add more documents as needed
+            {"id": "1", "name": "JKKN Overview", "content": "JKKN Educational Institutions offer a wide range of programs including engineering, management, and health sciences. Founded in 1995, JKKN has become a leading educational group in the region."},
+            {"id": "2", "name": "Admission Process", "content": "To apply for admission to JKKN, students need to follow these steps: 1) Fill out the online application form, 2) Submit required documents, 3) Pay the application fee, 4) Attend the entrance exam if required for the chosen program."},
+            {"id": "3", "name": "Campus Facilities", "content": "JKKN campuses are equipped with state-of-the-art facilities including modern laboratories, libraries with extensive collections, sports complexes, and comfortable student housing. Wi-Fi is available throughout the campus."},
+            {"id": "4", "name": "Faculty", "content": "JKKN boasts a highly qualified faculty with many holding PhDs from renowned universities. Our professors are dedicated to providing quality education and are actively involved in research and industry collaborations."},
+            {"id": "5", "name": "Placements", "content": "JKKN has an excellent track record in placements. Our dedicated placement cell works tirelessly to ensure students get opportunities in top companies. Many of our alumni are working in Fortune 500 companies."}
         ]
 
     @cached(cache=lambda self: self.cache)
@@ -129,7 +141,7 @@ class ChatBot:
     async def fetch_external_data(self, url):
         # This is a placeholder. In a real scenario, you'd fetch actual external data.
         await asyncio.sleep(1)  # Simulate network delay
-        return {"info": "This is some additional information about JKKN."}
+        return {"info": "JKKN is currently accepting applications for the upcoming academic year. Visit our website for more details."}
 
     async def process_user_input_async(self, user_input):
         rewritten_query, query_embedding = self.query_rewrite(user_input)
