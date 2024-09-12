@@ -61,8 +61,7 @@ def initialize_chatbot():
             return False
     return True
 
-@st.cache_data
-def process_user_input(chatbot, prompt, model, device, tokenizer):
+def process_user_input(prompt, model, device, tokenizer):
     pr = cProfile.Profile()
     pr.enable()
 
@@ -72,6 +71,7 @@ def process_user_input(chatbot, prompt, model, device, tokenizer):
         outputs = model(**inputs)
         embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
     
+    chatbot = st.session_state.chatbot
     rewritten_query = chatbot.query_rewrite(prompt, embeddings[0])
     response = chatbot.process_user_input(rewritten_query)
     similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
@@ -118,7 +118,7 @@ def main():
             message_placeholder = st.empty()
             full_response = ""
             
-            response, similar_docs, scores = process_user_input(st.session_state.chatbot, prompt, model, device, tokenizer)
+            response, similar_docs, scores = process_user_input(prompt, model, device, tokenizer)
             
             for chunk in response.split():  # Simulate streaming response
                 full_response += chunk + " "
