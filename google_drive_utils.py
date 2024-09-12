@@ -6,7 +6,7 @@ import io
 from elasticsearch import Elasticsearch
 from file_processor import extract_file_text
 
-es = Elasticsearch([{"http://localhost:9200"}])
+es = Elasticsearch(["http://localhost:9200"])
 
 def get_drive_service():
     credentials = service_account.Credentials.from_service_account_file(
