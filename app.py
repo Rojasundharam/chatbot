@@ -6,6 +6,8 @@ from config import STREAMLIT_THEME_COLOR
 import cProfile
 import pstats
 import io
+import torch
+from transformers import BertTokenizer, BertModel
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -33,6 +35,16 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 @st.cache_resource
+def load_bert_model():
+    model = BertModel.from_pretrained('bert-base-uncased')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    model = torch.jit.script(model)
+    model = model.half()
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    return model, device, tokenizer
+
+@st.cache_resource
 def get_chatbot():
     return ChatBot(st.session_state)
 
@@ -51,12 +63,20 @@ def initialize_chatbot():
             return False
     return True
 
-def process_user_input(chatbot, prompt):
+@st.cache_data
+def process_user_input(chatbot, prompt, model, device, tokenizer):
     pr = cProfile.Profile()
     pr.enable()
 
-    response = chatbot.process_user_input(chatbot.query_rewrite(prompt))
-    similar_docs, scores = chatbot.get_similar_documents(prompt)
+    # Use the optimized BERT model for query rewriting
+    with torch.no_grad():
+        inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
+        outputs = model(**inputs)
+        embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+    
+    rewritten_query = chatbot.query_rewrite(prompt, embeddings[0])
+    response = chatbot.process_user_input(rewritten_query)
+    similar_docs, scores = chatbot.get_similar_documents(rewritten_query)
 
     pr.disable()
     s = io.StringIO()
@@ -79,6 +99,9 @@ def main():
     if not initialize_chatbot():
         st.stop()
 
+    # Load BERT model
+    model, device, tokenizer = load_bert_model()
+
     # Display last update time and indexed documents
     st.sidebar.subheader("Document Index Status")
     last_update = st.sidebar.empty()
@@ -86,39 +109,38 @@ def main():
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            st.markdown(message["content"])
 
     if prompt := st.chat_input("Type your question here"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
-            st.write(prompt)
+            st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response, similar_docs, scores = process_user_input(st.session_state.chatbot, prompt)
-                    st.write(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+            message_placeholder = st.empty()
+            full_response = ""
+            
+            for chunk in process_user_input(st.session_state.chatbot, prompt, model, device, tokenizer):
+                full_response += chunk + " "
+                message_placeholder.markdown(full_response + "▌")
+            
+            message_placeholder.markdown(full_response)
+            
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-                    # Display top document matches
-                    if similar_docs:
-                        st.subheader("Top Matching Documents:")
-                        for doc, score in zip(similar_docs, scores):
-                            st.write(f"- {doc['name']} (Relevance: {score:.2f})")
-                            st.write(f"  Link: https://drive.google.com/file/d/{doc['id']}/view")
-                    else:
-                        st.info("No closely matching documents found for this query.")
-
-                except Exception as e:
-                    error_msg = f"Error processing request: {str(e)}"
-                    st.error(error_msg)
-                    logging.error(error_msg)
+            # Display top document matches
+            if similar_docs := st.session_state.chatbot.get_similar_documents(prompt):
+                with st.expander("Top Matching Documents"):
+                    for doc, score in similar_docs:
+                        st.markdown(f"- [{doc['name']}](https://drive.google.com/file/d/{doc['id']}/view) (Relevance: {score:.2f})")
+            else:
+                st.info("No closely matching documents found for this query.")
 
     # Update sidebar information
     last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
-    indexed_docs.text("Indexed documents:")
-    for doc_name in st.session_state.chatbot.get_indexed_document_names():
-        indexed_docs.text(f"- {doc_name}")
+    with st.sidebar.expander("Indexed documents"):
+        for doc_name in st.session_state.chatbot.get_indexed_document_names():
+            st.text(f"- {doc_name}")
 
 if __name__ == "__main__":
     main()
