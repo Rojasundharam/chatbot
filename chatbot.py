@@ -11,10 +11,13 @@ from cachetools import TTLCache, cached
 import functools
 import httpx
 
+def download_nltk_data():
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('wordnet', quiet=True)
+
 # Download required NLTK data
-nltk.download('punkt', quiet=True)
-nltk.download('averaged_perceptron_tagger', quiet=True)
-nltk.download('wordnet', quiet=True)
+download_nltk_data()
 
 class OptimizedDocumentRetrieval:
     def __init__(self, documents):

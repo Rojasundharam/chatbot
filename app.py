@@ -1,7 +1,7 @@
 import streamlit as st
 import asyncio
 import time
-from chatbot import ChatBot
+from chatbot import ChatBot, download_nltk_data
 
 # Constants
 STREAMLIT_THEME_COLOR = "#56ab2f"  # You can adjust this color
@@ -33,6 +33,7 @@ st.markdown(f"""
 
 @st.cache_resource
 def get_chatbot():
+    download_nltk_data()  # Ensure NLTK data is downloaded
     return ChatBot(st.session_state)
 
 def initialize_chatbot():
@@ -47,7 +48,11 @@ def initialize_chatbot():
     return True
 
 async def process_user_input_wrapper(chatbot, prompt):
-    return await chatbot.process_user_input_async(prompt)
+    try:
+        return await chatbot.process_user_input_async(prompt)
+    except Exception as e:
+        st.error(f"An error occurred while processing your input: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request. Please try again later."
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -79,18 +84,22 @@ def main():
             message_placeholder = st.empty()
             full_response = ""
             
-            # Use asyncio to run the asynchronous process_user_input_async
-            response = asyncio.run(process_user_input_wrapper(st.session_state.chatbot, prompt))
-            
-            # Simulate streaming
-            for chunk in response.split():
-                full_response += chunk + " "
-                time.sleep(0.05)
-                message_placeholder.markdown(full_response + "▌")
-            
-            message_placeholder.markdown(full_response)
-            
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            try:
+                # Use asyncio to run the asynchronous process_user_input_async
+                response = asyncio.run(process_user_input_wrapper(st.session_state.chatbot, prompt))
+                
+                # Simulate streaming
+                for chunk in response.split():
+                    full_response += chunk + " "
+                    time.sleep(0.05)
+                    message_placeholder.markdown(full_response + "▌")
+                
+                message_placeholder.markdown(full_response)
+                
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.error("Please try again or contact support if the problem persists.")
 
     # Update sidebar information
     last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
