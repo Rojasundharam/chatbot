@@ -1,7 +1,7 @@
 import streamlit as st
 import asyncio
 import time
-from chatbot import ChatBot, download_nltk_data
+from chatbot import ChatBot
 import logging
 
 # Set up logging
@@ -37,28 +37,7 @@ st.markdown(f"""
 
 @st.cache_resource
 def get_chatbot():
-    try:
-        download_nltk_data()  # Ensure NLTK data is downloaded
-        return ChatBot(st.session_state)
-    except Exception as e:
-        logging.error(f"Error initializing ChatBot: {str(e)}")
-        return None
-
-def initialize_chatbot():
-    if "chatbot" not in st.session_state:
-        st.session_state.chatbot = get_chatbot()
-    
-    if st.session_state.chatbot is None:
-        st.error("ChatBot initialization failed. Please check your environment and try again.")
-        return False
-    return True
-
-async def process_user_input_wrapper(chatbot, prompt):
-    try:
-        return await chatbot.process_user_input_async(prompt)
-    except Exception as e:
-        logging.error(f"Error processing user input: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request. Please try again later."
+    return ChatBot(st.session_state)
 
 def main():
     st.title("JKKN Assist 🤖")
@@ -69,8 +48,8 @@ def main():
             {"role": "assistant", "content": "Hello! How can I help you today?"}
         ]
 
-    if not initialize_chatbot():
-        st.stop()
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = get_chatbot()
 
     # Display last update time and indexed documents
     st.sidebar.subheader("Document Index Status")
@@ -91,8 +70,7 @@ def main():
             full_response = ""
             
             try:
-                # Use asyncio to run the asynchronous process_user_input_async
-                response = asyncio.run(process_user_input_wrapper(st.session_state.chatbot, prompt))
+                response = asyncio.run(st.session_state.chatbot.process_user_input_async(prompt))
                 
                 # Simulate streaming
                 for chunk in response.split():
