@@ -32,9 +32,13 @@ def initialize_chatbot():
         try:
             st.session_state.chatbot = ChatBot(st.session_state)
             logging.info("ChatBot initialized successfully")
-        except Exception as e:
-            logging.error(f"Error initializing ChatBot: {str(e)}")
+        except ValueError as e:
             st.error(f"Failed to initialize ChatBot: {str(e)}")
+            st.error("Please check your environment variables and Elasticsearch connection.")
+            return False
+        except Exception as e:
+            logging.error(f"Unexpected error initializing ChatBot: {str(e)}")
+            st.error(f"An unexpected error occurred: {str(e)}")
             return False
     return True
 

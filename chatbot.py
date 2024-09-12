@@ -9,11 +9,31 @@ from transformers import pipeline
 class ChatBot:
     def __init__(self, session_state):
         self.session_state = session_state
+        
+        # Check for Google credentials
+        google_creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if not google_creds_path:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. Please set it to the path of your Google Cloud service account key file.")
+        
         self.drive_service = get_drive_service()
         self.folder_id = "1EyR0sfFEBUDGbPn3lBDIP5qcFumItrvQ"  # Your Google Drive folder ID
-        self.es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
+        
+        # Check for Elasticsearch
+        try:
+            self.es = Elasticsearch(["http://localhost:9200"])
+            if not self.es.ping():
+                raise ValueError("Could not connect to Elasticsearch. Make sure it's running on http://localhost:9200")
+        except Exception as e:
+            raise ValueError(f"Error connecting to Elasticsearch: {str(e)}")
+        
         self.embedding_util = EmbeddingUtil()
-        self.anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        
+        # Check for Anthropic API key
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set. Please set it to your Anthropic API key.")
+        self.anthropic = Anthropic(api_key=anthropic_api_key)
+        
         self.qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
         
         self.index_and_vectorize_documents()

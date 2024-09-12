@@ -6,6 +6,7 @@ import io
 from elasticsearch import Elasticsearch
 from file_processor import extract_file_text
 
+# Correct Elasticsearch initialization
 es = Elasticsearch(["http://localhost:9200"])
 
 def get_drive_service():
