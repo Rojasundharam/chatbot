@@ -5,6 +5,8 @@ import torch
 from sentence_transformers import SentenceTransformer
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import logging
+from cache import Cache
+from web_scraper import scrape_webpage
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -53,21 +55,46 @@ class ChatBot:
         self.document_retrieval = OptimizedDocumentRetrieval(self.documents)
         self.response_generator = ImprovedResponseGenerator()
         self.last_update_time = time.time()
+        self.cache = Cache()
+        self.web_sources = [
+            "https://www.jkkn.org/about-us",
+            "https://www.jkkn.org/courses",
+            # Add more relevant URLs
+        ]
+        self.load_web_sources()
 
     def load_documents(self):
+        # This is a placeholder implementation. In a real scenario, you'd load documents from a database or file system.
         return [
-            {"id": "1", "name": "JKKN Overview", "content": "JKKN Educational Institutions offer a wide range of programs including engineering, management, and health sciences. Founded in 1995, JKKN has become a leading educational group in the region."},
-            {"id": "2", "name": "Admission Process", "content": "To apply for admission to JKKN, students need to follow these steps: 1) Fill out the online application form, 2) Submit required documents, 3) Pay the application fee, 4) Attend the entrance exam if required for the chosen program."},
-            {"id": "3", "name": "Campus Facilities", "content": "JKKN campuses are equipped with state-of-the-art facilities including modern laboratories, libraries with extensive collections, sports complexes, and comfortable student housing. Wi-Fi is available throughout the campus."},
-            {"id": "4", "name": "Faculty", "content": "JKKN boasts a highly qualified faculty with many holding PhDs from renowned universities. Our professors are dedicated to providing quality education and are actively involved in research and industry collaborations."},
-            {"id": "5", "name": "Placements", "content": "JKKN has an excellent track record in placements. Our dedicated placement cell works tirelessly to ensure students get opportunities in top companies. Many of our alumni are working in Fortune 500 companies."}
+            {"id": "1", "name": "About JKKN", "content": "JKKN Educational Institutions offer a wide range of programs including engineering, management, and health sciences."},
+            {"id": "2", "name": "Courses", "content": "JKKN offers various undergraduate and postgraduate courses in engineering, management, and healthcare."},
+            {"id": "3", "name": "Admissions", "content": "Admissions to JKKN are based on merit and entrance examinations. The process typically starts in May each year."},
         ]
+
+    def load_web_sources(self):
+        for url in self.web_sources:
+            content = scrape_webpage(url)
+            self.documents.append({
+                "id": url,
+                "name": f"Web: {url}",
+                "content": content
+            })
+        # Update document embeddings
+        self.document_retrieval = OptimizedDocumentRetrieval(self.documents)
 
     async def process_user_input_async(self, user_input):
         try:
+            cache_key = f"query_{hash(user_input)}"
+            cached_response = self.cache.get(cache_key)
+            
+            if cached_response:
+                return cached_response
+
             similar_docs, scores = self.document_retrieval.get_similar_documents(user_input)
             context = "\n".join([doc['content'] for doc in similar_docs])
             response = self.response_generator.generate_response(user_input, context)
+
+            self.cache.set(cache_key, response)
             return response
         except Exception as e:
             logging.error(f"Error processing user input: {str(e)}")

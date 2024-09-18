@@ -1,19 +1,21 @@
+# fileprocessor.py
+
 import io
 import os
 from typing import IO, Any
 import csv
-
 import chardet
 import docx
 import openpyxl
 import pptx
 from pypdf import PdfReader
 from pypdf.errors import PdfStreamError
+import pypandoc
 
 TEXT_SECTION_SEPARATOR = "\n\n"
 
 VALID_FILE_EXTENSIONS = [
-    ".txt", ".md", ".pdf", ".docx", ".pptx", ".xlsx", ".csv"
+    ".txt", ".md", ".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".rtf", ".odt"
 ]
 
 def get_file_ext(file_path_or_name: str) -> str:
@@ -83,6 +85,14 @@ def csv_to_text(file: IO[Any]) -> str:
     csv_reader = csv.reader(io.StringIO(csv_content))
     return "\n".join([", ".join(row) for row in csv_reader])
 
+def rtf_to_text(file: IO[Any]) -> str:
+    content = file.read()
+    return pypandoc.convert_text(content, 'plain', format='rtf')
+
+def odt_to_text(file: IO[Any]) -> str:
+    content = file.read()
+    return pypandoc.convert_text(content, 'plain', format='odt')
+
 def extract_file_text(file_name: str, file: IO[Any]) -> str:
     extension = get_file_ext(file_name)
     if not check_file_ext_is_valid(extension):
@@ -100,5 +110,9 @@ def extract_file_text(file_name: str, file: IO[Any]) -> str:
         return xlsx_to_text(file)
     elif extension == '.csv':
         return csv_to_text(file)
+    elif extension == '.rtf':
+        return rtf_to_text(file)
+    elif extension == '.odt':
+        return odt_to_text(file)
     else:
         raise ValueError(f"Unsupported file extension: {extension}")
