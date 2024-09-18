@@ -4,16 +4,12 @@ import time
 from chatbot import ChatBot
 import logging
 from translator import Translator
-import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 STREAMLIT_THEME_COLOR = "#56ab2f"  # You can adjust this color
-
-# Set Tamil as an environment variable
-os.environ['TAMIL_LANGUAGE'] = 'தமிழ்'
 
 st.set_page_config(page_title="JKKN Assist", page_icon="🤖", layout="wide")
 
@@ -58,9 +54,6 @@ def main():
 
     translator = Translator()
 
-    # Language selection
-    language = st.selectbox("Select Language", ["English", os.environ.get('TAMIL_LANGUAGE', 'Tamil')])
-
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -78,13 +71,12 @@ def main():
                 full_response = ""
                 
                 try:
-                    if language == os.environ.get('TAMIL_LANGUAGE', 'Tamil'):
-                        prompt = translator.translate_text(prompt, target_language="en")
-
-                    response = asyncio.run(st.session_state.chatbot.process_user_input_async(prompt))
+                    detected_language, translated_prompt = translator.detect_and_translate(prompt)
                     
-                    if language == os.environ.get('TAMIL_LANGUAGE', 'Tamil'):
-                        response = translator.translate_text(response, target_language="ta")
+                    response = asyncio.run(st.session_state.chatbot.process_user_input_async(translated_prompt))
+                    
+                    if detected_language != 'en':
+                        response = translator.translate_text(response, target_language=detected_language)
 
                     # Simulate streaming
                     for chunk in response.split():
