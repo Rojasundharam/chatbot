@@ -1,11 +1,8 @@
-# translator.py
-
-from google.cloud import translate_v2 as translate
-
 class Translator:
     def __init__(self):
-        self.client = translate.Client()
+        pass
 
     def translate_text(self, text, target_language):
-        result = self.client.translate(text, target_language=target_language)
-        return result['translatedText']
+        # This is a mock translation that just returns the original text
+        print(f"Mock translation to {target_language}: {text}")
+        return text
