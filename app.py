@@ -1,18 +1,19 @@
-# app.py
-
 import streamlit as st
 import asyncio
 import time
 from chatbot import ChatBot
 import logging
-from feedback import save_feedback
 from translator import Translator
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 STREAMLIT_THEME_COLOR = "#56ab2f"  # You can adjust this color
+
+# Set Tamil as an environment variable
+os.environ['TAMIL_LANGUAGE'] = 'தமிழ்'
 
 st.set_page_config(page_title="JKKN Assist", page_icon="🤖", layout="wide")
 
@@ -57,60 +58,48 @@ def main():
 
     translator = Translator()
 
-    # Display last update time and indexed documents
-    st.sidebar.subheader("Document Index Status")
-    last_update = st.sidebar.empty()
-    indexed_docs = st.sidebar.empty()
-
     # Language selection
-    language = st.sidebar.selectbox("Select Language", ["English", "Tamil"])
+    language = st.selectbox("Select Language", ["English", os.environ.get('TAMIL_LANGUAGE', 'Tamil')])
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Type your question here"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    prompt = st.text_input("Type your question here")
+    
+    if st.button("Send"):
+        if prompt:
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-            
-            try:
-                if language == "Tamil":
-                    prompt = translator.translate_text(prompt, target_language="en")
-
-                response = asyncio.run(st.session_state.chatbot.process_user_input_async(prompt))
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = ""
                 
-                if language == "Tamil":
-                    response = translator.translate_text(response, target_language="ta")
+                try:
+                    if language == os.environ.get('TAMIL_LANGUAGE', 'Tamil'):
+                        prompt = translator.translate_text(prompt, target_language="en")
 
-                # Simulate streaming
-                for chunk in response.split():
-                    full_response += chunk + " "
-                    time.sleep(0.05)
-                    message_placeholder.markdown(full_response + "▌")
-                
-                message_placeholder.markdown(full_response)
-                
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-            except Exception as e:
-                logging.error(f"An error occurred: {str(e)}")
-                st.error("An error occurred while processing your request. Please try again or contact support if the problem persists.")
+                    response = asyncio.run(st.session_state.chatbot.process_user_input_async(prompt))
+                    
+                    if language == os.environ.get('TAMIL_LANGUAGE', 'Tamil'):
+                        response = translator.translate_text(response, target_language="ta")
 
-    # Feedback mechanism
-    if st.button("Submit Feedback"):
-        rating = st.slider("Rate the response (1-5)", 1, 5, 3)
-        save_feedback(prompt, full_response, rating)
-        st.success("Thank you for your feedback!")
-
-    # Update sidebar information
-    last_update.text(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.session_state.chatbot.last_update_time))}")
-    with st.sidebar.expander("Indexed documents"):
-        for doc_name in st.session_state.chatbot.get_indexed_document_names():
-            st.text(f"- {doc_name}")
+                    # Simulate streaming
+                    for chunk in response.split():
+                        full_response += chunk + " "
+                        time.sleep(0.05)
+                        message_placeholder.markdown(full_response + "▌")
+                    
+                    message_placeholder.markdown(full_response)
+                    
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                except Exception as e:
+                    logging.error(f"An error occurred: {str(e)}")
+                    error_message = "I'm sorry, but I encountered an error while processing your request. Please try again or contact support if the problem persists."
+                    message_placeholder.markdown(error_message)
+                    st.session_state.messages.append({"role": "assistant", "content": error_message})
 
 if __name__ == "__main__":
     main()
